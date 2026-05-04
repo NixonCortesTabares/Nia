@@ -1,0 +1,2 @@
+ALTER TABLE mensajes 
+ADD COLUMN wamid VARCHAR(255);

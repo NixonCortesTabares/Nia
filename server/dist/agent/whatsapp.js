@@ -1,0 +1,31 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.enviarMensaje = enviarMensaje;
+async function enviarMensaje(to, text) {
+    try {
+        const url = `https://graph.facebook.com/v20.0/${process.env.WS_PHONE_NUMBER_ID}/messages`;
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${process.env.WS_TOKEN}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                "messaging_product": "whatsapp",
+                "to": to,
+                "type": "text",
+                "text": { "body": text }
+            })
+        });
+        const data = await response.json();
+        if (!response.ok || data.error) {
+            console.error('Error de Meta:', data.error);
+            throw new Error(`Meta API error: ${data.error?.message}`);
+        }
+        return data.messages[0].id;
+    }
+    catch (error) {
+        console.error("Error enviando el mensaje a whatsapp", error);
+        throw error;
+    }
+}
