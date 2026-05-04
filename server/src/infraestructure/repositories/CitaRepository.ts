@@ -33,6 +33,19 @@ function mapCita(row: CitaRow): Cita {
 }
 
 export class CitaRepository implements ICitaRepository {
+  async buscarPorCliente(clienteId: string): Promise<Cita[]> {
+    const result = await pool.query<CitaRow>(
+      `SELECT id, negocio_id, cliente_id, conversacion_id, servicio_id, 
+            profesional_id, fecha, hora, estado, notas, creado_en
+            FROM citas
+            WHERE cliente_id = $1
+            AND estado IN ('pendiente', 'confirmada')
+            ORDER BY fecha ASC, hora ASC`,
+            [clienteId]
+    );
+
+    return result.rows.map(mapCita);
+  }
   async crear(data: CrearCitaDTO): Promise<Cita> {
     const result = await pool.query<CitaRow>(
       `INSERT INTO citas (negocio_id, cliente_id, servicio_id, profesional_id, conversacion_id, fecha, hora, notas)

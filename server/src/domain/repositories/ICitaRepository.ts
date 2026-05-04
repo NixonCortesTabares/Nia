@@ -5,6 +5,7 @@ export interface ICitaRepository {
   buscarPorId(id: string): Promise<Cita | null>;
   buscarPorNegocio(negocioId: string): Promise<Cita[]>;
   buscarPorNegocioYPeriodo(negocioId: string, desde: Date, hasta: Date): Promise<Cita[]>;
+  buscarPorCliente(clienteId: string):Promise<Cita[]>
   buscarHorasOcupadas(negocioId: string, fecha: Date): Promise<string[]>;
   actualizar(id: string, data: ActualizarCitaDTO): Promise<Cita | null>;
 }

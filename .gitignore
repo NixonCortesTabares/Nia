@@ -1,6 +1,6 @@
 # Dependencias
 node_modules/
-
+server/node_modules/
 # Variables de entorno
 .env
 .env.local
@@ -8,9 +8,11 @@ node_modules/
 .env.production
 
 # Builds
+# Builds
 dist/
 build/
-
+server/dist/
+server/build/
 # Logs
 logs/
 *.log
