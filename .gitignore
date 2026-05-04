@@ -29,3 +29,8 @@ Thumbs.db
 # Prisma / DB local si aplica
 *.sqlite
 *.db
+
+server/.env
+server/.env.local
+server/.env.development
+server/.env.production
