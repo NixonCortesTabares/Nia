@@ -34,7 +34,7 @@ export class ProcesarMensajeEntranteUseCase {
             }
             cliente = clienteCreado;
         }
-        let conversacionActiva = await this.conversacionRepository.buscarActiva(cliente.id, negocio.id);
+        let conversacionActiva = await this.conversacionRepository.buscarActivaYEscalada(cliente.id, negocio.id);
 
         if (!conversacionActiva) {
             const crearConversacion = await this.conversacionRepository.crear({
@@ -43,6 +43,8 @@ export class ProcesarMensajeEntranteUseCase {
             });
             conversacionActiva = crearConversacion;
         }
+
+        
 
         const guardarMensaje = await this.mensajeRepository.crear({
             conversacionId: conversacionActiva.id,

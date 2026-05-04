@@ -7,6 +7,7 @@ const MensajeRepository_1 = require("../infraestructure/repositories/MensajeRepo
 const ClienteRepository_1 = require("../infraestructure/repositories/ClienteRepository");
 const ProcesarMensajeEntranteUseCase_1 = require("../application/conversaciones/ProcesarMensajeEntranteUseCase");
 const whatsapp_1 = require("../agent/whatsapp");
+const agent_1 = require("../agent");
 const router = (0, express_1.Router)();
 router.get('/', (req, res) => {
     console.log('ENV SECRET:', process.env.WS_WEBHOOK_SECRET);
@@ -48,19 +49,41 @@ router.post('/', async (req, res) => {
         const mensajeRepo = new MensajeRepository_1.MensajeRepository();
         const clienteRepo = new ClienteRepository_1.ClienteRepository();
         const mensajeEntrante = new ProcesarMensajeEntranteUseCase_1.ProcesarMensajeEntranteUseCase(negocioRepo, conversacionRepo, mensajeRepo, clienteRepo);
+        //Funcion que recibe el mensaje del cliente
         const resultado = await mensajeEntrante.execute({
             wamid: wamid,
             from: from,
             text: text,
             phoneId: phoneId
         });
-        const wamidRta = await (0, whatsapp_1.enviarMensaje)(from, "Hola, recibimos tu mensaje, en breve seras atendido.");
-        const result = await mensajeRepo.crear({
-            conversacionId: resultado.conversacion.id,
-            rol: 'agente',
-            contenido: 'Hola, recibimos tu mensaje',
-            wamid: wamidRta
+        // Obtener historial de la conversación
+        const historial = await mensajeRepo.buscarPorConversacion(resultado.conversacion.id);
+        // Llamar al agente
+        const respuesta = await (0, agent_1.runAgentTurn)({
+            negocio: resultado.negocio,
+            cliente: resultado.cliente,
+            conversacion: resultado.conversacion,
+            historial,
+            mensajeCliente: text
         });
+        // Solo responder si el agente generó texto
+        if (respuesta) {
+            const wamidRta = await (0, whatsapp_1.enviarMensaje)(from, respuesta);
+            await mensajeRepo.crear({
+                conversacionId: resultado.conversacion.id,
+                rol: 'agente',
+                contenido: respuesta,
+                wamid: wamidRta
+            });
+        }
+        /*const wamidRta= await enviarMensaje(from, "Hola, recibimos tu mensaje, en breve seras atendido.");
+      
+        const result = await mensajeRepo.crear({
+          conversacionId: resultado.conversacion.id,
+          rol: 'agente',
+          contenido: 'Hola, recibimos tu mensaje',
+          wamid: wamidRta
+        })*/
     }
     catch (error) {
         console.log("Error en ProcesarMensajeEntranteUseCase", error);

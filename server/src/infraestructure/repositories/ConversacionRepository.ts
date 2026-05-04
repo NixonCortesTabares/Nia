@@ -31,11 +31,11 @@ function mapConversacion(row: ConversacionRow): Conversacion {
 }
 
 export class ConversacionRepository implements IConversacionRepository {
-  async buscarActiva(clienteId: string, negocioId: string): Promise<Conversacion | null> {
+  async buscarActivaYEscalada(clienteId: string, negocioId: string): Promise<Conversacion | null> {
     const result = await pool.query<ConversacionRow>(
       `SELECT id, negocio_id, cliente_id, tipo, estado, resumen, iniciada_en, cerrada_en
        FROM conversaciones 
-       WHERE estado = 'activa'
+       WHERE estado IN ('activa', 'escalada')
        AND cliente_id = $1
        AND negocio_id = $2`,
        [clienteId, negocioId]
