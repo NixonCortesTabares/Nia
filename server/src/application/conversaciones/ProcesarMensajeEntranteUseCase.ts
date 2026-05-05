@@ -44,6 +44,14 @@ export class ProcesarMensajeEntranteUseCase {
             conversacionActiva = crearConversacion;
         }
 
+        const conversacionActualizada = await this.conversacionRepository.actualizar(conversacionActiva.id, {
+            ultimoMensajeEn: new Date()
+        });
+
+        if (conversacionActualizada) {
+            conversacionActiva = conversacionActualizada;
+        }
+
         
 
         const guardarMensaje = await this.mensajeRepository.crear({

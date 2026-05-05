@@ -15,3 +15,8 @@ export interface CrearClienteDTO {
   telefono: string;
   nombre?: string;
 }
+
+export interface ActualizarClienteDTO {
+  nombre?: string;
+  telefono?:string;
+}

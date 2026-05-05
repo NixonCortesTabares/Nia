@@ -15,6 +15,7 @@ interface ConversacionRow {
   resumen: string | null;
   iniciada_en: Date;
   cerrada_en: Date | null;
+  ultimo_mensaje_en: Date;
 }
 
 function mapConversacion(row: ConversacionRow): Conversacion {
@@ -27,17 +28,19 @@ function mapConversacion(row: ConversacionRow): Conversacion {
     resumen: row.resumen ?? undefined,
     iniciadaEn: row.iniciada_en,
     cerradaEn: row.cerrada_en ?? undefined,
+    ultimoMensajeEn: row.ultimo_mensaje_en,
   };
 }
 
 export class ConversacionRepository implements IConversacionRepository {
   async buscarActivaYEscalada(clienteId: string, negocioId: string): Promise<Conversacion | null> {
     const result = await pool.query<ConversacionRow>(
-      `SELECT id, negocio_id, cliente_id, tipo, estado, resumen, iniciada_en, cerrada_en
+      `SELECT id, negocio_id, cliente_id, tipo, estado, resumen, iniciada_en, cerrada_en, ultimo_mensaje_en
        FROM conversaciones 
        WHERE estado IN ('activa', 'escalada')
        AND cliente_id = $1
-       AND negocio_id = $2`,
+       AND negocio_id = $2
+       AND ultimo_mensaje_en > NOW() - INTERVAL '24 hours'`,
        [clienteId, negocioId]
     );
 
@@ -50,7 +53,7 @@ export class ConversacionRepository implements IConversacionRepository {
     const result = await pool.query<ConversacionRow>(
       `INSERT INTO conversaciones (negocio_id, cliente_id, tipo)
        VALUES ($1, $2, $3)
-       RETURNING id, negocio_id, cliente_id, tipo, estado, resumen, iniciada_en, cerrada_en`,
+       RETURNING id, negocio_id, cliente_id, tipo, estado, resumen, iniciada_en, cerrada_en, ultimo_mensaje_en`,
       [data.negocioId, data.clienteId, data.tipo ?? null]
     );
 
@@ -59,7 +62,7 @@ export class ConversacionRepository implements IConversacionRepository {
 
   async buscarPorId(id: string): Promise<Conversacion | null> {
     const result = await pool.query<ConversacionRow>(
-      `SELECT id, negocio_id, cliente_id, tipo, estado, resumen, iniciada_en, cerrada_en
+      `SELECT id, negocio_id, cliente_id, tipo, estado, resumen, iniciada_en, cerrada_en, ultimo_mensaje_en
        FROM conversaciones
        WHERE id = $1`,
       [id]
@@ -78,15 +81,17 @@ export class ConversacionRepository implements IConversacionRepository {
        SET tipo = COALESCE($2, tipo),
            estado = COALESCE($3, estado),
            resumen = COALESCE($4, resumen),
-           cerrada_en = COALESCE($5, cerrada_en)
+           cerrada_en = COALESCE($5, cerrada_en),
+           ultimo_mensaje_en = COALESCE($6, ultimo_mensaje_en)
        WHERE id = $1
-       RETURNING id, negocio_id, cliente_id, tipo, estado, resumen, iniciada_en, cerrada_en`,
+       RETURNING id, negocio_id, cliente_id, tipo, estado, resumen, iniciada_en, cerrada_en, ultimo_mensaje_en`,
       [
         id,
         data.tipo ?? null,
         data.estado ?? null,
         data.resumen ?? null,
         data.cerradaEn ?? null,
+        data.ultimoMensajeEn ?? null,
       ]
     );
 

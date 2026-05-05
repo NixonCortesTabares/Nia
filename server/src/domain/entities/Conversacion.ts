@@ -10,6 +10,7 @@ export interface Conversacion {
   resumen?: string;
   iniciadaEn: Date;
   cerradaEn?: Date;
+  ultimoMensajeEn: Date;
 }
 
 export interface CrearConversacionDTO {
@@ -18,9 +19,12 @@ export interface CrearConversacionDTO {
   tipo?: TipoConversacion;
 }
 
-export interface ActualizarConversacionDTO {
+export interface EditarConversacionDTO {
   tipo?: TipoConversacion;
   estado?: EstadoConversacion;
   resumen?: string;
   cerradaEn?: Date;
+  ultimoMensajeEn?: Date;
 }
+
+export interface ActualizarConversacionDTO extends EditarConversacionDTO {}

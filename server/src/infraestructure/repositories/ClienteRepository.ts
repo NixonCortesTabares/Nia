@@ -1,5 +1,5 @@
 import pool from '../../config/db';
-import { Cliente, CrearClienteDTO } from '../../domain/entities/Cliente';
+import { ActualizarClienteDTO, Cliente, CrearClienteDTO } from '../../domain/entities/Cliente';
 import { IClienteRepository } from '../../domain/repositories/IClienteRepository';
 
 interface ClienteRow {
@@ -29,6 +29,7 @@ function mapCliente(row: ClienteRow): Cliente {
 }
 
 export class ClienteRepository implements IClienteRepository {
+  
   async crear(data: CrearClienteDTO): Promise<Cliente> {
     const result = await pool.query<ClienteRow>(
       `INSERT INTO clientes (negocio_id, telefono, nombre)
@@ -36,6 +37,23 @@ export class ClienteRepository implements IClienteRepository {
        RETURNING id, negocio_id, nombre, telefono, primera_visita, ultima_visita, total_visitas, activo, creado_en`,
       [data.negocioId, data.telefono, data.nombre ?? null]
     );
+
+    return mapCliente(result.rows[0]);
+  }
+
+  async actualizar(id:string, data: ActualizarClienteDTO): Promise<Cliente | null> {
+    const result = await pool.query<ClienteRow>(
+      `UPDATE clientes
+       SET nombre = COALESCE($2, nombre),
+           telefono = COALESCE($3, telefono)
+       WHERE id = $1
+       RETURNING id, negocio_id, nombre, telefono, primera_visita, ultima_visita, total_visitas, activo, creado_en`,
+      [id, data.nombre ?? null, data.telefono ?? null]
+    );
+
+    if (!result.rows[0]) {
+      return null;
+    }
 
     return mapCliente(result.rows[0]);
   }

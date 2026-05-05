@@ -80,49 +80,18 @@ export async function runAgentTurnAnthropic(
         content: params.mensajeCliente,
       });
     }
+    const MAX_ITERACIONES = 5;
+    let iteraciones = 0;
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": process.env.ANTHROPIC_API_KEY ?? "",
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1024,
-        system: buildSystemPrompt(params.negocio),
-        tools,
-        messages,
-      }),
-    });
+    // Loop hasta que Claude devuelva end_turn
+    while (true) {
 
-    const data = (await response.json()) as ClaudeResponse;
-
-    console.log("Anthropic status:", response.status);
-    console.log("Anthropic stop_reason:", data.stop_reason);
-
-    if (data.stop_reason === "end_turn") {
-      return data.content[0].text ?? "";
-    }
-
-    if (data.stop_reason === "tool_use") {
-      const toolUse = data.content.find((block) => block.type === "tool_use");
-
-      if (!toolUse || !toolUse.name || !toolUse.id) {
-        return "No pude procesar tu mensaje en este momento.";
+      if (iteraciones >= MAX_ITERACIONES) {
+        console.error('Límite de iteraciones alcanzado — posible loop infinito');
+        return "En este momento no puedo completar tu solicitud. Intenta de nuevo.";
       }
-
-      console.log("Tool ejecutada:", toolUse.name);
-
-      const resultado = await ejecutarHerramienta(
-        toolUse.name,
-        toolUse.input,
-        params.negocio.id,
-        params.conversacion.id
-      );
-
-      const response2 = await fetch("https://api.anthropic.com/v1/messages", {
+      iteraciones++;
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
           "x-api-key": process.env.ANTHROPIC_API_KEY ?? "",
@@ -130,36 +99,73 @@ export async function runAgentTurnAnthropic(
           "content-type": "application/json",
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-sonnet-4-5",
           max_tokens: 1024,
           system: buildSystemPrompt(params.negocio),
           tools,
-          messages: [
-            ...messages,
-            {
-              role: "assistant",
-              content: data.content,
-            },
-            {
-              role: "user",
-              content: [
-                {
-                  type: "tool_result",
-                  tool_use_id: toolUse.id,
-                  content: resultado,
-                },
-              ],
-            },
-          ],
+          messages,
         }),
       });
 
-      const data2 = (await response2.json()) as ClaudeResponse;
+      const data = (await response.json()) as ClaudeResponse;
+      console.log("Anthropic status:", response.status);
+      console.log("Anthropic stop_reason:", data.stop_reason);
 
-      return data2.content[0].text ?? "";
+      // Claude terminó — devuelve el texto
+      if (data.stop_reason === "end_turn") {
+        const textBlock = data.content.find(b => b.type === "text");
+        return textBlock?.text ?? "";
+      }
+
+      // Claude quiere usar herramientas
+      if (data.stop_reason === "tool_use") {
+        const toolUseBlocks = data.content.filter(b => b.type === "tool_use");
+
+        if (toolUseBlocks.length === 0) {
+          return "No pude procesar tu mensaje en este momento.";
+        }
+
+        // Agregar respuesta del assistant al historial
+        messages.push({
+          role: "assistant",
+          content: data.content,
+        });
+
+        // Ejecutar todas las herramientas y agregar resultados
+        const toolResults = [];
+        for (const toolUse of toolUseBlocks) {
+          if (!toolUse.name || !toolUse.id) continue;
+
+          console.log("Tool ejecutada:", toolUse.name);
+
+          const resultado = await ejecutarHerramienta(
+            toolUse.name,
+            toolUse.input,
+            params.negocio.id,
+            params.conversacion.id,
+            params.cliente.id
+          );
+
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: toolUse.id,
+            content: resultado,
+          });
+        }
+
+        // Agregar resultados al historial y continuar el loop
+        messages.push({
+          role: "user",
+          content: toolResults,
+        });
+
+        continue;
+      }
+
+      // Caso inesperado
+      return "No pude procesar tu mensaje en este momento.";
     }
 
-    return "No pude procesar tu mensaje en este momento.";
   } catch (error) {
     console.error("Error en runAgentTurnAnthropic:", error);
     return "Tuve un problema procesando tu mensaje. Intenta de nuevo.";
@@ -245,7 +251,8 @@ export async function runAgentTurnGroq(
         toolName,
         toolInput,
         params.negocio.id,
-        params.conversacion.id
+        params.conversacion.id,
+        params.cliente.id
       );
 
       console.log("Resultado de tool:", JSON.stringify(resultado, null, 2));

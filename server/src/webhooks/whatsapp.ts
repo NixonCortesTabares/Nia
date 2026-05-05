@@ -101,8 +101,9 @@ router.post('/', async (req, res) => {
     }
 
     // Obtener historial de la conversación
-    const historial = await mensajeRepo.buscarPorConversacion(resultado.conversacion.id);
+    const historialCompleto = await mensajeRepo.buscarPorConversacion(resultado.conversacion.id);
 
+    const historial = historialCompleto.slice(-10);
     // Llamar al agente
     const respuesta = await runAgentTurn({
       negocio: resultado.negocio,
