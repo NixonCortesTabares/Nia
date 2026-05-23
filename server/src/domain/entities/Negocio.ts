@@ -1,7 +1,7 @@
 export interface Negocio {
   id: string;
   nombre: string;
-  tipo: 'barberia' | 'salon' | 'spa' | 'manicure' | 'peluqueria';
+  tipo: 'restaurante';
   telefonoWs?: string;
   ciudad?: string;
   direccion?: string;
@@ -18,7 +18,7 @@ export interface CrearNegocioDTO {
 
 export interface EditarNegocioDTO {
   nombre?: string;
-  tipo?: 'barberia' | 'salon' | 'spa' | 'manicure' | 'peluqueria';
+  tipo?: 'restaurante';
   telefonoWs?: string;
   ciudad?: string;
   direccion?: string;

@@ -41,14 +41,15 @@ export class ClienteRepository implements IClienteRepository {
     return mapCliente(result.rows[0]);
   }
 
-  async actualizar(id:string, data: ActualizarClienteDTO): Promise<Cliente | null> {
+  async actualizar(id:string, data: ActualizarClienteDTO, negocioId: string): Promise<Cliente | null> {
     const result = await pool.query<ClienteRow>(
       `UPDATE clientes
        SET nombre = COALESCE($2, nombre),
            telefono = COALESCE($3, telefono)
        WHERE id = $1
+       AND negocio_id = $4
        RETURNING id, negocio_id, nombre, telefono, primera_visita, ultima_visita, total_visitas, activo, creado_en`,
-      [id, data.nombre ?? null, data.telefono ?? null]
+      [id, data.nombre ?? null, data.telefono ?? null, negocioId]
     );
 
     if (!result.rows[0]) {

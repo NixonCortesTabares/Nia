@@ -1,44 +1,24 @@
+interface ToolProperty {
+  type: string | string[];
+  description?: string;
+  enum?: string[];
+  minimum?: number;
+  items?: ToolProperty;
+  properties?: { [key: string]: ToolProperty };
+  required?: string[];
+}
+
 interface Tool {
   name: string;
   description: string;
   input_schema: {
     type: 'object';
-    properties: {
-      [key: string]: {
-        type: string;
-        description: string;
-      };
-    };
+    properties: { [key: string]: ToolProperty };
     required: string[];
   };
 }
 
 export const tools: Tool[] = [
-  {
-    name: 'consultar_servicios', /////
-    description:
-      'Obtiene la lista de servicios y precios registrados en el negocio. Úsala cuando el cliente pregunte por servicios, precios o cuando quiera agendar un servicio específico que todavía no ha sido validado.',
-    input_schema: {
-      type: 'object',
-      properties: {},
-      required: [],
-    },
-  },
-  {
-    name: 'consultar_disponibilidad', ////
-    description:
-     'Consulta horarios disponibles para una fecha específica. Úsala solo cuando el cliente quiera revisar disponibilidad y ya esté claro el servicio que desea o el cliente solo esté preguntando por horarios generales. No la uses si el cliente pidió un servicio específico que todavía no ha sido validado con consultar_servicios.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        fecha: {
-          type: 'string',
-          description: 'Fecha en formato YYYY-MM-DD, ejemplo: 2026-05-15',
-        },
-      },
-      required: ['fecha'],
-    },
-  },
   {
     name: 'escalar_conversacion', /////
     description:
@@ -50,57 +30,88 @@ export const tools: Tool[] = [
     },
   },
   {
-    name: 'consultar_citas_cliente', ////6666
-    description:
-      'Obtiene las citas activas (pendiente o confirmada) del cliente actual. Úsala cuando el cliente quiera cancelar, reagendar o consultar sus citas existentes. No necesita parámetros porque el sistema identifica al cliente automáticamente.',
-    input_schema: {
-      type: 'object',
-      properties: {},
-      required: [],
-    },
-  },
-  {
-    name: 'agendar_cita', ////
-    description:
-      'Agenda una nueva cita para el cliente. Úsala solo cuando tengas confirmados: el servicio (validado previamente con consultar_servicios), la fecha en formato YYYY-MM-DD, la hora en formato HH:MM, y el nombre del cliente.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        nombre_servicio: {
-          type: 'string',
-          description: 'Nombre exacto del servicio a agendar, obtenido de consultar_servicios',
-        },
-        fecha: {
-          type: 'string',
-          description: 'Fecha en formato YYYY-MM-DD',
-        },
-        hora: {
-          type: 'string',
-          description: 'Hora en formato HH:MM, ejemplo: 10:00',
-        },
-        nombre_cliente: {
-          type: 'string',
-          description: 'Nombre del cliente para la cita',
-        },
+  name: "generar_pedido",
+  description:
+    "Genera un pedido para un local de comida cuando el cliente ya confirmó explícitamente el pedido. El backend valida productos, extras, precios, domicilio y total. No usar esta herramienta si faltan datos o si el cliente aún no ha confirmado.",
+  input_schema: {
+    type: "object",
+    properties: {
+      nombre_cliente: {
+        type: "string",
+        description: "Nombre del cliente que realiza el pedido."
       },
-      required: ['servicio_id', 'fecha', 'hora', 'nombre_cliente'],
-    },
-  },
-  {
-    name: 'cancelar_cita',  ////
-    description:
-      'Cancela una cita existente. Úsala cuando el cliente confirme qué cita quiere cancelar. Si el cliente solo tiene una cita activa, cancélala directamente sin pedir confirmación de cuál.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        cita_id: {
-          type: 'string',
-          description: 'ID de la cita a cancelar, obtenido de consultar_citas_cliente',
-        },
+      telefono_cliente: {
+        type: "string",
+        description:
+          "Teléfono del cliente. Si el teléfono ya viene del contexto de WhatsApp, usar ese valor."
       },
-      required: ['cita_id'],
+      tipo_entrega: {
+        type: "string",
+        enum: ["domicilio", "recoger_en_local", "consumo_en_local"],
+        description:
+          "Tipo de entrega del pedido. Usar domicilio si se debe enviar a una dirección, recoger_en_local si el cliente recoge en el local, o consumo_en_local si aplica."
+      },
+      direccion_entrega: {
+        type: "string",
+        description:
+          "Dirección de entrega. Es obligatoria solo cuando tipo_entrega es domicilio."
+      },
+      metodo_pago: {
+        type: "string",
+        enum: ["efectivo", "transferencia"],
+        description:
+          "Método de pago elegido por el cliente."
+      },
+      items: {
+        type: "array",
+        description:
+          "Lista de productos solicitados por el cliente. Si el mismo producto tiene configuraciones diferentes, se debe enviar como items separados.",
+        items: {
+          type: "object",
+          properties: {
+            nombre_producto: {
+              type: "string",
+              description:
+                "Nombre del producto pedido, tal como lo indicó el cliente."
+            },
+            cantidad: {
+              type: "integer",
+              minimum: 1,
+              description:
+                "Cantidad del producto solicitado."
+            },
+            extras: {
+              type: "array",
+              description:
+                "Lista de extras solicitados para este producto específico. Si no tiene extras, enviar arreglo vacío.",
+              items: {
+                type: "string"
+              }
+            },
+            notas: {
+              type: ["string", "null"],
+              description:
+                "Notas o modificaciones del producto, por ejemplo: sin cebolla, sin salsas, bien asado."
+            }
+          },
+          required: ["nombre_producto", "cantidad"]
+        }
+      },
+      notas: {
+        type: ["string", "null"],
+        description:
+          "Notas generales del pedido completo."
+      }
     },
-  },
+    required: [
+      "nombre_cliente",
+      "telefono_cliente",
+      "tipo_entrega",
+      "metodo_pago",
+      "items"
+    ]
+  }
+},
   {
     name: 'reagendar_cita',   ////
     description:

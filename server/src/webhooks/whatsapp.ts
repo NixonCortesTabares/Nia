@@ -4,9 +4,9 @@ import { ConversacionRepository } from '../infraestructure/repositories/Conversa
 import { MensajeRepository } from '../infraestructure/repositories/MensajeRepository';
 import { ClienteRepository } from '../infraestructure/repositories/ClienteRepository';
 import { ProcesarMensajeEntranteUseCase } from '../application/conversaciones/ProcesarMensajeEntranteUseCase';
+import { clasificarMensaje } from './MensajesPredefinidos';
+import { responderMensajePredefinido } from './MensajesPredefinidos';
 import { enviarMensaje } from '../agent/whatsapp';
-import { runAgentTurn } from '../agent';
-
 interface WhatsAppTextMessage {
   id: string;
   from: string;
@@ -35,8 +35,6 @@ interface WhatsAppWebhookBody {
 const router = Router();
 
 router.get('/', (req, res) => {
-  console.log('ENV SECRET:', process.env.WS_WEBHOOK_SECRET);
-  console.log('RECEIVED TOKEN:', req.query['hub.verify_token']);
   const mode = req.query['hub.mode'];
   const verifyToken = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
@@ -57,6 +55,7 @@ router.get('/', (req, res) => {
 
 router.post('/', async (req, res) => {
   res.sendStatus(200);
+
   try {
     const body = req.body as WhatsAppWebhookBody;
 
@@ -78,65 +77,77 @@ router.post('/', async (req, res) => {
     const wamid = message.id;
     const from = message.from;
     const text = message.text.body;
-    const phoneId = value.metadata.phone_number_id
+    const phoneId = value.metadata.phone_number_id;
 
     const negocioRepo = new NegocioRepository();
     const conversacionRepo = new ConversacionRepository();
     const mensajeRepo = new MensajeRepository();
     const clienteRepo = new ClienteRepository();
 
-    const mensajeEntrante = new ProcesarMensajeEntranteUseCase(negocioRepo, conversacionRepo, mensajeRepo, clienteRepo)
+    const mensajeEntrante = new ProcesarMensajeEntranteUseCase(
+      negocioRepo,
+      conversacionRepo,
+      mensajeRepo,
+      clienteRepo
+    );
 
-    //Funcion que recibe el mensaje del cliente
+    //Busca al negocio, crea al cliente, crea la conversacion, y guarda el mensaje del cliente
     const resultado = await mensajeEntrante.execute({
-      wamid: wamid,
-      from: from,
-      text: text,
-      phoneId: phoneId
+      wamid,
+      from,
+      text,
+      phoneId,
     });
 
-    if (resultado.conversacion.estado === 'escalada') {
-      console.log('Conversación escalada. El agente no responderá automáticamente.');
+    const clasificacionMensaje = clasificarMensaje(text);
+  
+    if (resultado.conversacion.estado !== "activa") {
+      console.log("Conversación no activa. El agente no responde.");
       return;
     }
 
-    // Obtener historial de la conversación
-    const historialCompleto = await mensajeRepo.buscarPorConversacion(resultado.conversacion.id);
-
-    const historial = historialCompleto.slice(-10);
-    // Llamar al agente
-    const respuesta = await runAgentTurn({
-      negocio: resultado.negocio,
-      cliente: resultado.cliente,
-      conversacion: resultado.conversacion,
-      historial,
-      mensajeCliente: text
-    });
-
-    console.log("Respuesta generada por agente:", JSON.stringify(respuesta));
-
-    // Solo responder si el agente generó texto
-    if (respuesta) {
-      const wamidRta = await enviarMensaje(from, respuesta);
-      await mensajeRepo.crear({
-        conversacionId: resultado.conversacion.id,
-        rol: 'agente',
-        contenido: respuesta,
-        wamid: wamidRta
-      });
+    if(clasificacionMensaje === 'saludo'){
+      const respuestaPredefinida = responderMensajePredefinido('saludo');
+      if(respuestaPredefinida !== null){
+        const wamidRta = await enviarMensaje(resultado.cliente.telefono, respuestaPredefinida);
+        
+            await mensajeRepo.crear({
+              conversacionId: resultado.conversacion.id,
+              rol: "agente",
+              contenido: respuestaPredefinida,
+              wamid: wamidRta,
+            });
+        
+        return;
+      }
     }
 
-    /*const wamidRta= await enviarMensaje(from, "Hola, recibimos tu mensaje, en breve seras atendido.");
-  
-    const result = await mensajeRepo.crear({
-      conversacionId: resultado.conversacion.id,
-      rol: 'agente',
-      contenido: 'Hola, recibimos tu mensaje',
-      wamid: wamidRta 
-    })*/
-  }
-  catch (error) {
-    console.log("Error en ProcesarMensajeEntranteUseCase", error)
+    if(clasificacionMensaje === 'despedida'){
+      const respuestaPredefinida = responderMensajePredefinido('despedida');
+      if(respuestaPredefinida !== null){
+        const wamidRta = await enviarMensaje(resultado.cliente.telefono, respuestaPredefinida);
+
+        await mensajeRepo.crear({
+          conversacionId: resultado.conversacion.id,
+          contenido: respuestaPredefinida,
+          rol: 'agente',
+          wamid: wamidRta,
+        });
+
+        return;
+      }
+    }
+    await conversacionRepo.marcarRespuestaPendiente(
+      resultado.conversacion.id,
+      4000
+    );
+
+    console.log(
+      'Conversación marcada como pendiente:',
+      resultado.conversacion.id
+    );
+  } catch (error) {
+    console.log('Error en ProcesarMensajeEntranteUseCase', error);
   }
 });
 

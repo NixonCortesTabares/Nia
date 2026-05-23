@@ -1,6 +1,10 @@
 import pool from '../../config/db';
 import { Cita, CrearCitaDTO, ActualizarCitaDTO } from '../../domain/entities/Cita';
-import { ICitaRepository } from '../../domain/repositories/ICitaRepository';
+import {
+  CitaActivaConDuracionDTO,
+  CitaClienteDTO,
+  ICitaRepository,
+} from '../../domain/repositories/ICitaRepository';
 
 interface CitaRow {
   id: string;
@@ -33,18 +37,51 @@ function mapCita(row: CitaRow): Cita {
 }
 
 export class CitaRepository implements ICitaRepository {
-  async buscarPorCliente(clienteId: string): Promise<Cita[]> {
-    const result = await pool.query<CitaRow>(
-      `SELECT id, negocio_id, cliente_id, conversacion_id, servicio_id, 
-            profesional_id, fecha, hora, estado, notas, creado_en
-            FROM citas
-            WHERE cliente_id = $1
-            AND estado IN ('pendiente', 'confirmada')
-            ORDER BY fecha ASC, hora ASC`,
-            [clienteId]
+  async buscarPorCliente(clienteId: string, negocioId: string): Promise<CitaClienteDTO[]> {
+    const result = await pool.query<CitaClienteDTO>(
+      `SELECT 
+              c.id,
+              s.nombre AS servicio_nombre,
+              c.fecha,
+              c.hora,
+              c.estado,
+              c.notas
+            FROM citas c
+            INNER JOIN servicios_catalogo s 
+              ON c.servicio_id = s.id
+            WHERE c.cliente_id = $1
+              AND c.negocio_id = $2
+              AND c.estado IN ('pendiente', 'confirmada')
+            ORDER BY c.fecha ASC, c.hora ASC;`,
+      [clienteId, negocioId]
     );
 
-    return result.rows.map(mapCita);
+    return result.rows;
+  }
+
+  async buscarActivasConDuracionPorFecha(
+    negocioId: string,
+    fecha: string | Date,
+    ignorarCitaId?: string
+  ): Promise<CitaActivaConDuracionDTO[]> {
+    const result = await pool.query<CitaActivaConDuracionDTO>(
+      `SELECT
+              c.id,
+              c.fecha,
+              c.hora,
+              s.duracion_minutos
+            FROM citas c
+            INNER JOIN servicios_catalogo s
+              ON c.servicio_id = s.id
+            WHERE c.negocio_id = $1
+              AND c.fecha = $2
+              AND c.estado IN ('pendiente', 'confirmada')
+              AND ($3::uuid IS NULL OR c.id <> $3::uuid)
+            ORDER BY c.hora ASC`,
+      [negocioId, fecha, ignorarCitaId ?? null]
+    );
+
+    return result.rows;
   }
   async crear(data: CrearCitaDTO): Promise<Cita> {
     const result = await pool.query<CitaRow>(

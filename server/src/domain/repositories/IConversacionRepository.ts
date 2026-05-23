@@ -5,4 +5,12 @@ export interface IConversacionRepository {
   buscarPorId(id: string): Promise<Conversacion | null>;
   buscarActivaYEscalada(clienteId: string, negocioId: string): Promise<Conversacion | null>;
   actualizar(id: string, data: ActualizarConversacionDTO): Promise<Conversacion | null>;
+  marcarRespuestaPendiente(conversacionId: string, delayMs: number): Promise<void>;
+  buscarPendientesParaAgente(limit?: number): Promise<Conversacion[]>;
+  limpiarRespuestaPendiente(conversacionId: string): Promise<void>;
+  marcarProcesadaHasta(conversacionId: string, ultimoClienteProcesadoEn: Date): Promise<void>;
+  marcarProcesadaHastaMensaje(
+    conversacionId: string,
+    mensajeClienteId: string
+  ): Promise<void>;
 }

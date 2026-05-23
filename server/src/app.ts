@@ -6,6 +6,7 @@ import authRoutes from './infraestructure/http/routes/auth.routes';
 import profesionalRoutes from './infraestructure/http/routes/ProfesionalRoutes';
 import serviciosRoutes from './infraestructure/http/routes/ServiciosRoutes';
 import whatsappWebhook from './webhooks/whatsapp';
+import { startAgentWorker } from './agent/agentWorker';
 
 dotenv.config();
 
@@ -19,6 +20,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/profesionales', profesionalRoutes);
 app.use('/api/servicios', serviciosRoutes);
 app.use('/webhook', whatsappWebhook);
+
+startAgentWorker();
 
 // Ruta de salud â€” para verificar que el servidor funciona
 app.get('/health', async (req, res) => {

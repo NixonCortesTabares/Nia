@@ -21,6 +21,10 @@ export class ProcesarMensajeEntranteUseCase {
             throw new Error('Negocio no encontrado');
         }
 
+        if(!negocio.activo){
+            throw new Error('Negocio inactivo.')
+        }
+
         let cliente = await this.clienteRepository.buscarPorTelefono(negocio.id, data.from);
         if (!cliente) {
             const clienteCreado = await this.clienteRepository.crear(

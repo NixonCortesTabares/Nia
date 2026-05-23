@@ -41,7 +41,7 @@ nia-project/
 │       ├── domain/
 │       │   ├── entities/
 │       │   └── repositories/
-│       ├── infrastructure/
+│       ├── infraestructure/
 │       │   └── http/
 │       │       ├── controllers/
 │       │       ├── middlewares/
@@ -73,7 +73,7 @@ Fase 0 — Base técnica
     conexión PostgreSQL
     migraciones
     autenticación básica del panel
-    CRUD mínimo de negocio, profesionales y servicios
+    CRUD mínimo de categorias, productos, pedidos, extras, PedidoProducto, PedidoProductoExtra.
     Salida de esta fase: puedo entrar al sistema y cargar catálogo.
 Fase 1 — Webhook de WhatsApp
     Luego:endpoint de verificación webhook
@@ -91,22 +91,16 @@ Fase 2 — Orquestador IA con tools
     devolver tool_result
     responder al usuario
     Para bajar complejidad, empezaría con una sola llamada serial, no paralela. Anthropic permite paralelismo, pero para agenda inicial prefiero determinismo.
-    Salida de esta fase: el agente ya puede consultar servicios y disponibilidad.
-Fase 3 — Agenda completa
-    Luego:consultar_disponibilidad
-    agendar_cita
-    cancelar_cita
-    reagendar_cita
+    Salida de esta fase: el agente ya puede consultar menu y hacer pedidos.
+Fase 3 — Herramientas completas
+    Luego: generar_pedido
+    cancelar_pedido
     handoff a humano
-    panel simple de citas
+    panel simple de pedidos
     Salida de esta fase: Nia ya resuelve el dolor principal.
-Fase 4 — Dashboard mínimocitas por día
-    ocupación por profesional
+Fase 4 — Dashboard mínimo pedidos por día
     clientes que no volvieron en X días
-    Y el cálculo de “clientes en riesgo” al principio lo dejaría como una regla heurística, no como IA:barba: >30 días sin volver
-    corte: >45 días
-    manicure: >25 días
-    color: >60 días
+    Y el cálculo de “clientes en riesgo” al principio lo dejaría como una regla heurística.
     Luego lo refinamos con datos reales.
 Fase 5 — Mensajes de recuperación
     Aquí entra el detalle importante de WhatsApp: fuera de la ventana de 24 horas, esos mensajes deben salir como template messages, no como texto libre. Entonces el feature de recuperación necesita:una o dos plantillas aprobadas

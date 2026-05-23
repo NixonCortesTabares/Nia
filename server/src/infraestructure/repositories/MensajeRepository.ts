@@ -45,4 +45,22 @@ export class MensajeRepository implements IMensajeRepository {
 
     return result.rows.map(mapMensaje);
   }
+
+  async buscarUltimoMensajeCliente(conversacionId: string): Promise<Mensaje | null> {
+    const result = await pool.query<MensajeRow>(
+      `SELECT id, conversacion_id, rol, contenido, wamid, enviado_en
+       FROM mensajes
+       WHERE conversacion_id = $1
+         AND rol = 'cliente'
+       ORDER BY enviado_en DESC
+       LIMIT 1`,
+      [conversacionId]
+    );
+
+    if (!result.rows[0]) {
+      return null;
+    }
+
+    return mapMensaje(result.rows[0]);
+  }
 }

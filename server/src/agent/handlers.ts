@@ -2,35 +2,38 @@ import { ServicioRepository } from "../infraestructure/repositories/ServicioRepo
 import { CitaRepository } from "../infraestructure/repositories/CitaRepository";
 import { ConversacionRepository } from "../infraestructure/repositories/ConversacionRepository";
 import { ClienteRepository } from "../infraestructure/repositories/ClienteRepository";
-import { ProfesionalRepository } from "../infraestructure/repositories/ProfesionalRepository";
+//import { ProfesionalRepository } from "../infraestructure/repositories/ProfesionalRepository";
+//import { Servicio } from "../domain/entities/Servicio";
+//import { CitaActivaConDuracionDTO } from "../domain/repositories/ICitaRepository";
+import { GenerarPedidoUseCase, GenerarPedidoUseCaseDTO } from "../application/pedidos/GenerarPedidoUseCase";
+import { NegocioRepository } from "../infraestructure/repositories/NegocioRepository";
+import { PedidoRepository } from "../infraestructure/repositories/PedidoRepository";
+import { ProductoRepository } from "../infraestructure/repositories/ProductoRepository";
+import { ExtraRepository } from "../infraestructure/repositories/ExtraRepository";
+import { CategoriaExtraRepository } from "../infraestructure/repositories/CategoriaExtraRepository";
+
+function textoValido(valor: unknown): valor is string {
+    return typeof valor === 'string' && valor.trim().length > 0;
+}
+
+function arregloValido(valor: unknown): valor is unknown[] {
+    return Array.isArray(valor) && valor.length > 0;
+}
+
+function validarCamposObligatorios(input: any, campos: string[]): string | null {
+    const faltantes = campos.filter((campo) => !textoValido(input?.[campo]));
+
+    if (faltantes.length > 0) {
+        return `Faltan datos obligatorios para ejecutar la herramienta: ${faltantes.join(', ')}.`;
+    }
+
+    return null;
+}
+
 
 export async function ejecutarHerramienta(nombre: string, input: any,
     negocioId: string, conversacionId: string, clienteId: string): Promise<string> {
     try {
-        if (nombre === "consultar_servicios") {
-            const servicioRepo = new ServicioRepository()
-            const servicios = await servicioRepo.buscarPorNegocio(negocioId);
-
-            if (servicios.length === 0) {
-                return "Este negocio no tiene servicios aun."
-            }
-            return servicios.map(s =>
-                `ID: ${s.id}\nServicio: ${s.nombre}\nPrecio: $${s.precioBase}\nDuración: ${s.duracionMinutos} minutos`
-            ).join('\n\n');
-        }
-
-        if (nombre === "consultar_disponibilidad") {
-
-            const arrayHorasDisponibles = ['09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00', '17:00', '18:00']
-            const citaRepo = new CitaRepository()
-            const citas = await citaRepo.buscarHorasOcupadas(negocioId, input.fecha);
-
-            if (!citas) {
-                return `Horas disponibles: ${arrayHorasDisponibles.join(',')}`
-            }
-            const horasLibres = arrayHorasDisponibles.filter(h => !citas.includes(h));
-            return `Horas disponibles: ${horasLibres.join(',')}`;
-        }
 
         if (nombre === 'escalar_conversacion') {
             const conversacionRepo = new ConversacionRepository();
@@ -41,79 +44,94 @@ export async function ejecutarHerramienta(nombre: string, input: any,
             return 'Conversacion escalada exitosamente. Un humano atenderá al cliente pronto.';
         }
 
-        if (nombre === 'consultar_citas_cliente') {
-            const citaRepo = new CitaRepository();
-            const citasCliente = await citaRepo.buscarPorCliente(clienteId);
+        if (nombre === 'generar_pedido') {
+            const errorValidacion = validarCamposObligatorios(input, [
+                'nombre_cliente',
+                'telefono_cliente',
+                'tipo_entrega',
+                'metodo_pago',
+            ]);
 
-            if (citasCliente.length === 0) {
-                return 'El cliente no tiene citas pendientes';
+            if (errorValidacion) {
+                return errorValidacion;
             }
 
-            return citasCliente.map(c =>
-                `ID: ${c.id}\nServicio: ${c.servicioId}\nFecha: ${c.fecha}\nHora: ${c.hora}\nEstado: ${c.estado}`
-            ).join('\n\n');
-        }
+            if (!arregloValido(input.items)) {
+                return 'Faltan productos para generar el pedido.';
+            }
 
-        if (nombre === 'agendar_cita') {
+            const pedidoRepo = new PedidoRepository();
+            const productoRepo = new ProductoRepository();
+            const extraRepo = new ExtraRepository();
+            const categoriaExtraRepo = new CategoriaExtraRepository();
 
-            const servicioRepo = new ServicioRepository();
-            const servicios = await servicioRepo.buscarPorNegocio(negocioId);
-            const servicio = servicios.find(
-                s => s.nombre.toLowerCase() === input.nombre_servicio.toLowerCase()
+            const generarPedidoUseCase = new GenerarPedidoUseCase(
+                pedidoRepo,
+                productoRepo,
+                extraRepo,
+                categoriaExtraRepo
             );
-            if (!servicio) {
-                return `No existe el servicio "${input.nombre_servicio}" en este negocio.`;
-            }
 
-            const profesionalRepo = new ProfesionalRepository();
-            const profesionales = await profesionalRepo.buscarPorNegocio(negocioId);
-            const profesional = profesionales[0] ?? null;
-
-            const clienteRepo = new ClienteRepository();
-            await clienteRepo.actualizar(clienteId, { nombre: input.nombre_cliente });
-
-            const citaRepo = new CitaRepository();
-            const cita = await citaRepo.crear({
+            const pedidoGenerado = await generarPedidoUseCase.execute({
                 negocioId,
                 clienteId,
                 conversacionId,
-                servicioId: servicio.id,
-                profesionalId: profesional?.id,
-                fecha: new Date(input.fecha),
-                hora: input.hora,
+                nombreCliente: input.nombre_cliente,
+                telefonoCliente: input.telefono_cliente,
+                tipoEntrega: input.tipo_entrega,
+                direccionEntrega: input.direccion_entrega ?? null,
+                metodoPago: input.metodo_pago,
+                items: input.items.map((item: any) => ({
+                    nombreProducto: item.nombre_producto,
+                    cantidad: item.cantidad,
+                    extras: Array.isArray(item.extras) ? item.extras : [],
+                    notas: item.notas ?? null,
+                })),
+                notas: input.notas ?? null,
             });
 
-            if (!cita) {
-                return "No se pudo crear la cita."
-            }
+            const resumenItems = pedidoGenerado.productos
+                .map((item) => {
+                    const extrasTexto =
+                        item.extras.length > 0
+                            ? ` + ${item.extras.map((extra) => extra.nombreExtra).join(', ')}`
+                            : '';
 
-           return `Cita creada exitosamente. Servicio: ${servicio.nombre}, Fecha: ${input.fecha}, Hora: ${input.hora}, Cliente: ${input.nombre_cliente}`;
+                    const notasTexto = item.producto.notas
+                        ? ` (${item.producto.notas})`
+                        : '';
 
-        }
+                    return `- ${item.producto.cantidad} x ${item.producto.nombreProducto}${extrasTexto}${notasTexto}: $${item.producto.subtotal}`;
+                })
+                .join('\n');
 
-        if (nombre === 'cancelar_cita') {
-            const citaRepo = new CitaRepository();
-            const cancelacionCita = await citaRepo.actualizar(input.cita_id, { estado: 'cancelada' });
-            if (!cancelacionCita) {
-                return 'No se pudo cancelar la cita.'
-            }
+            return `Pedido generado exitosamente.
 
-            return `Cita cancelada con exito ${cancelacionCita}`;
-        }
+                Cliente: ${pedidoGenerado.pedido.nombreCliente}
+                Teléfono: ${pedidoGenerado.pedido.telefonoCliente}
+                Método de pago: ${pedidoGenerado.pedido.metodoPago}
+                Tipo de entrega: ${pedidoGenerado.pedido.tipoEntrega}
+                Dirección: ${pedidoGenerado.pedido.direccionEntrega ?? 'No aplica'}
 
-        if (nombre === 'reagendar_cita') {
-            const citaRepo = new CitaRepository();
-            const reagendarCita = await citaRepo.actualizar(input.cita_id, { fecha: input.nueva_fecha, hora: input.nueva_hora });
-            if (!reagendarCita) {
-                return 'No se pudo reagendar la cita';
-            };
-            return `Cita reagendada con exito: ${reagendarCita}`
+                Productos:
+                ${resumenItems}
+
+                Total: $${pedidoGenerado.total}`;
         }
         return "No se encontró una herramienta con ese nombre."
     }
     catch (error) {
         console.error('Error en herramienta', nombre, error);
-        return "Error obteniendo los servicios del negocio";
+
+        if ((error as { code?: string }).code === '23505') {
+            return 'No se pudo completar la operación porque ya existe un registro similar. Revisa los datos e intenta de nuevo.';
+        }
+
+        if (error instanceof Error) {
+            return error.message;
+        }
+
+        return 'Hubo un error ejecutando la herramienta solicitada. Intenta de nuevo o pide ayuda a una persona del negocio.';
     }
 
 
