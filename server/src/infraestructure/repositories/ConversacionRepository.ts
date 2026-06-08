@@ -4,6 +4,7 @@ import {
   CrearConversacionDTO,
   ActualizarConversacionDTO,
 } from '../../domain/entities/Conversacion';
+import { PedidoBorrador } from '../../domain/entities/Conversacion';
 import { IConversacionRepository } from '../../domain/repositories/IConversacionRepository';
 
 interface ConversacionRow {
@@ -16,6 +17,7 @@ interface ConversacionRow {
   iniciada_en: Date;
   cerrada_en: Date | null;
   ultimo_mensaje_en: Date;
+  pedido_borrador: PedidoBorrador;
 }
 
 function mapConversacion(row: ConversacionRow): Conversacion {
@@ -29,22 +31,42 @@ function mapConversacion(row: ConversacionRow): Conversacion {
     iniciadaEn: row.iniciada_en,
     cerradaEn: row.cerrada_en ?? undefined,
     ultimoMensajeEn: row.ultimo_mensaje_en,
+    pedidoBorrador: row.pedido_borrador,
   };
 }
 
 export class ConversacionRepository implements IConversacionRepository {
+  async actualizarPedidoBorrador(
+    conversacionId: string,
+    pedidoBorrador: PedidoBorrador
+  ): Promise<Conversacion | null> {
+    const result = await pool.query<ConversacionRow>(
+      `UPDATE conversaciones
+     SET pedido_borrador = $2,
+         ultimo_mensaje_en = NOW()
+     WHERE id = $1
+     RETURNING id, negocio_id, cliente_id, tipo, estado, resumen, iniciada_en, cerrada_en, ultimo_mensaje_en, pedido_borrador`,
+      [conversacionId, JSON.stringify(pedidoBorrador)]
+    );
+
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    return mapConversacion(result.rows[0]);
+  }
   async buscarActivaYEscalada(clienteId: string, negocioId: string): Promise<Conversacion | null> {
     const result = await pool.query<ConversacionRow>(
-      `SELECT id, negocio_id, cliente_id, tipo, estado, resumen, iniciada_en, cerrada_en, ultimo_mensaje_en
+      `SELECT id, negocio_id, cliente_id, tipo, estado, resumen, iniciada_en, cerrada_en, ultimo_mensaje_en, pedido_borrador
        FROM conversaciones 
        WHERE estado IN ('activa', 'escalada')
        AND cliente_id = $1
        AND negocio_id = $2
        AND ultimo_mensaje_en > NOW() - INTERVAL '24 hours'`,
-       [clienteId, negocioId]
+      [clienteId, negocioId]
     );
 
-    if(!result.rows[0]){
+    if (!result.rows[0]) {
       return null;
     }
     return mapConversacion(result.rows[0]);
@@ -53,7 +75,7 @@ export class ConversacionRepository implements IConversacionRepository {
     const result = await pool.query<ConversacionRow>(
       `INSERT INTO conversaciones (negocio_id, cliente_id, tipo)
        VALUES ($1, $2, $3)
-       RETURNING id, negocio_id, cliente_id, tipo, estado, resumen, iniciada_en, cerrada_en, ultimo_mensaje_en`,
+       RETURNING id, negocio_id, cliente_id, tipo, estado, resumen, iniciada_en, cerrada_en, ultimo_mensaje_en, pedido_borrador`,
       [data.negocioId, data.clienteId, data.tipo ?? null]
     );
 
@@ -62,7 +84,7 @@ export class ConversacionRepository implements IConversacionRepository {
 
   async buscarPorId(id: string): Promise<Conversacion | null> {
     const result = await pool.query<ConversacionRow>(
-      `SELECT id, negocio_id, cliente_id, tipo, estado, resumen, iniciada_en, cerrada_en, ultimo_mensaje_en
+      `SELECT id, negocio_id, cliente_id, tipo, estado, resumen, iniciada_en, cerrada_en, ultimo_mensaje_en, pedido_borrador
        FROM conversaciones
        WHERE id = $1
        LIMIT 1`,
@@ -89,7 +111,7 @@ export class ConversacionRepository implements IConversacionRepository {
 
   async buscarPendientesParaAgente(limit = 10): Promise<Conversacion[]> {
     const result = await pool.query<ConversacionRow>(
-      `SELECT id, negocio_id, cliente_id, tipo, estado, resumen, iniciada_en, cerrada_en, ultimo_mensaje_en
+      `SELECT id, negocio_id, cliente_id, tipo, estado, resumen, iniciada_en, cerrada_en, ultimo_mensaje_en, pedido_borrador
        FROM conversaciones
        WHERE respuesta_pendiente = true
          AND procesar_despues_de <= NOW()
@@ -199,7 +221,7 @@ export class ConversacionRepository implements IConversacionRepository {
            cerrada_en = COALESCE($5, cerrada_en),
            ultimo_mensaje_en = COALESCE($6, ultimo_mensaje_en)
        WHERE id = $1
-       RETURNING id, negocio_id, cliente_id, tipo, estado, resumen, iniciada_en, cerrada_en, ultimo_mensaje_en`,
+       RETURNING id, negocio_id, cliente_id, tipo, estado, resumen, iniciada_en, cerrada_en, ultimo_mensaje_en, pedido_borrador`,
       [
         id,
         data.tipo ?? null,

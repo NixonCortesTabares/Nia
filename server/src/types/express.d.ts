@@ -1,5 +1,3 @@
-import { Request } from 'express';
-
 declare global {
   namespace Express {
     interface Request {
@@ -8,6 +6,7 @@ declare global {
         negocioId: string;
         rol: string;
       };
+      rawBody?: Buffer;
     }
   }
 }

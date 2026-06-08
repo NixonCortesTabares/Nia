@@ -1,6 +1,7 @@
 export type EstadoPedido = 'pendiente' | 'en_cocina' | 'en_ruta' | 'entregado' |'cancelado';
 export type TipoEntrega = 'domicilio' | 'recoger_en_local'| 'consumo_en_local';
 export type metodoPago = 'efectivo' | 'transferencia';
+
 export interface Pedido{
     id: string,
     negocioId: string,

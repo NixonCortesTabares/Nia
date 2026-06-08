@@ -8,9 +8,13 @@ export async function enviarMensaje(to: string, text: string): Promise<string> {
             console.log("Texto:", text);
             return 'wamiddPruebiña';
         }
+
+        console.log("Mensaje simulado a WhatsApp:");
+        console.log("Para:", to);
+        console.log("Texto:", text);
         const url = `https://graph.facebook.com/v20.0/${process.env.WS_PHONE_NUMBER_ID}/messages`;
 
-        const response = await fetch(url, {
+        const response = await fetch( url, {
             method: "POST",
             headers: {
                 Authorization: `Bearer ${process.env.WS_TOKEN}`,

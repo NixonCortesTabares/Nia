@@ -1,4 +1,5 @@
 import { Conversacion, CrearConversacionDTO, ActualizarConversacionDTO } from '../entities/Conversacion';
+import { PedidoBorrador } from '../entities/Conversacion';
 
 export interface IConversacionRepository {
   crear(data: CrearConversacionDTO): Promise<Conversacion>;
@@ -13,4 +14,5 @@ export interface IConversacionRepository {
     conversacionId: string,
     mensajeClienteId: string
   ): Promise<void>;
+  actualizarPedidoBorrador(conversacionId:string, pedidoBorrador: PedidoBorrador):Promise<Conversacion | null>;
 }

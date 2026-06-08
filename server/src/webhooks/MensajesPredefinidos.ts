@@ -123,28 +123,19 @@ function tieneIntencionDeNegocio(texto: string): boolean {
   const palabras = texto.split(" ");
 
   const intenciones = [
-    "cita",
-    "turno",
-    "agendar",
-    "agenda",
-    "reservar",
-    "reserva",
-    "servicio",
-    "servicios",
     "precio",
     "precios",
     "cuanto",
     "vale",
     "costo",
     "cuesta",
-    "corte",
-    "barba",
-    "barbita",
-    "cabello",
-    "pelo",
-    "disponible",
+    "hamburguesa",
+    "perro caliente",
+    "picada",
+    "papas locas",
+    "comida",
+    "domicilio",
     "disponibilidad",
-    "horario",
     "hora",
     "manana",
     "hoy",
@@ -152,15 +143,6 @@ function tieneIntencionDeNegocio(texto: string): boolean {
     "cancela",
     "modificar",
     "cambiar",
-    "tinte",
-    "manicure",
-    "pedicure",
-    "cejas",
-    "depilacion",
-    "facial",
-    "masaje",
-    "limpiar",    // "me limpian..."
-    "arreglar",   // "me arreglan..."
     "quiero",     // intención directa
     "necesito",   // intención directa
   ];

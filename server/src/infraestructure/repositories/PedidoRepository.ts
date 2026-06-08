@@ -113,6 +113,47 @@ const pedidoProductoExtraColumns = `id, pedido_producto_id, extra_id, negocio_id
   cantidad, precio_unitario, subtotal, creado_en`;
 
 export class PedidoRepository implements IPedidoRepository {
+  async buscarPendientesPorCliente(negocioId: string, telefonoCliente: string): Promise<Pedido | null> {
+    const result = await pool.query<PedidoRow>(
+      `SELECT ${pedidoColumns}
+       FROM pedidos
+       WHERE negocio_id = $1
+         AND telefono_cliente = $2
+         AND estado IN('pendiente', 'confirmado')
+       ORDER BY creado_en DESC
+       LIMIT 1`,
+      [negocioId, telefonoCliente]
+    );
+
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    return mapPedido(result.rows[0]);
+  }
+
+  async buscarUltimoModificablePorConversacion(
+    negocioId: string,
+    conversacionId: string
+  ): Promise<Pedido | null> {
+    const result = await pool.query<PedidoRow>(
+      `SELECT ${pedidoColumns}
+       FROM pedidos
+       WHERE negocio_id = $1
+         AND conversacion_id = $2
+         AND estado IN ('pendiente', 'confirmado')
+       ORDER BY creado_en DESC
+       LIMIT 1`,
+      [negocioId, conversacionId]
+    );
+
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    return mapPedido(result.rows[0]);
+  }
+  
   async crear(data: CrearPedidoDTO): Promise<Pedido> {
     const result = await pool.query<PedidoRow>(
       `INSERT INTO pedidos (
@@ -252,14 +293,14 @@ export class PedidoRepository implements IPedidoRepository {
     return mapPedido(result.rows[0]);
   }
 
-  async buscarPorCliente(negocioId: string, clienteId: string): Promise<Pedido[]> {
+  async buscarPorCliente(negocioId: string, telefonoCliente: string): Promise<Pedido[]> {
     const result = await pool.query<PedidoRow>(
       `SELECT ${pedidoColumns}
        FROM pedidos
        WHERE negocio_id = $1
-         AND cliente_id = $2
+         AND telefono_cliente = $2
        ORDER BY creado_en DESC`,
-      [negocioId, clienteId]
+      [negocioId, telefonoCliente]
     );
 
     return result.rows.map(mapPedido);
@@ -346,4 +387,134 @@ export class PedidoRepository implements IPedidoRepository {
 
     return mapPedido(result.rows[0]);
   }
+
+  async cancelarYCrearCompleto(
+  pedidoAnteriorId: string,
+  data: CrearPedidoCompletoDTO
+): Promise<PedidoCompleto> {
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const cancelarResult = await client.query<PedidoRow>(
+      `UPDATE pedidos
+       SET estado = 'cancelado'
+       WHERE id = $1
+         AND negocio_id = $2
+         AND estado IN ('pendiente', 'confirmado')
+       RETURNING ${pedidoColumns}`,
+      [pedidoAnteriorId, data.pedido.negocioId]
+    );
+
+    if (cancelarResult.rows.length === 0) {
+      throw new Error(
+        'Pedido no encontrado o no se puede modificar porque ya está en proceso.'
+      );
+    }
+
+    const pedidoResult = await client.query<PedidoRow>(
+      `INSERT INTO pedidos (
+         negocio_id,
+         cliente_id,
+         conversacion_id,
+         nombre_cliente,
+         telefono_cliente,
+         tipo_entrega,
+         direccion_entrega,
+         metodo_pago,
+         costo_domicilio,
+         total,
+         notas,
+         estado
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'pendiente')
+       RETURNING ${pedidoColumns}`,
+      [
+        data.pedido.negocioId,
+        data.pedido.clienteId,
+        data.pedido.conversacionId,
+        data.pedido.nombreCliente,
+        data.pedido.telefonoCliente,
+        data.pedido.tipoEntrega,
+        data.pedido.direccionEntrega,
+        data.pedido.metodoPago,
+        data.pedido.costoDomicilio,
+        data.pedido.total,
+        data.pedido.notas,
+      ]
+    );
+
+    const pedido = mapPedido(pedidoResult.rows[0]);
+    const productos: PedidoCompleto['productos'] = [];
+
+    for (const item of data.productos) {
+      const productoResult = await client.query<PedidoProductoRow>(
+        `INSERT INTO pedidos_productos (
+           negocio_id,
+           pedidos_id,
+           productos_id,
+           nombre_producto,
+           cantidad,
+           precio_unitario,
+           subtotal,
+           notas
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         RETURNING ${pedidoProductoColumns}`,
+        [
+          pedido.negocioId,
+          pedido.id,
+          item.productoId,
+          item.nombreProducto,
+          item.cantidad,
+          item.precioUnitario,
+          item.subtotal,
+          item.notas ?? null,
+        ]
+      );
+
+      const producto = mapPedidoProducto(productoResult.rows[0]);
+      const extras: PedidoProductoExtra[] = [];
+
+      for (const extra of item.extras) {
+        const extraResult = await client.query<PedidoProductoExtraRow>(
+          `INSERT INTO pedidos_productos_extras (
+             pedido_producto_id,
+             extra_id,
+             negocio_id,
+             nombre_extra,
+             cantidad,
+             precio_unitario,
+             subtotal
+           )
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           RETURNING ${pedidoProductoExtraColumns}`,
+          [
+            producto.id,
+            extra.extraId,
+            pedido.negocioId,
+            extra.nombreExtra,
+            extra.cantidad,
+            extra.precioUnitario,
+            extra.subtotal,
+          ]
+        );
+
+        extras.push(mapPedidoProductoExtra(extraResult.rows[0]));
+      }
+
+      productos.push({ producto, extras });
+    }
+
+    await client.query('COMMIT');
+
+    return { pedido, productos };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
 }

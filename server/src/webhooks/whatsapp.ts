@@ -7,6 +7,8 @@ import { ProcesarMensajeEntranteUseCase } from '../application/conversaciones/Pr
 import { clasificarMensaje } from './MensajesPredefinidos';
 import { responderMensajePredefinido } from './MensajesPredefinidos';
 import { enviarMensaje } from '../agent/whatsapp';
+import { verificarFirmaMeta } from './verificarFirmaMeta';
+
 interface WhatsAppTextMessage {
   id: string;
   from: string;
@@ -54,6 +56,19 @@ router.get('/', (req, res) => {
 });
 
 router.post('/', async (req, res) => {
+
+  const signature = req.header('x-hub-signature-256');
+
+  const firmaValida = verificarFirmaMeta(
+    req.rawBody,
+    signature,
+    process.env.META_APP_SECRET
+  );
+
+  if (!firmaValida) {
+    console.warn('Webhook rechazado: firma inválida');
+    return res.sendStatus(403);
+  }
   res.sendStatus(200);
 
   try {
@@ -100,31 +115,31 @@ router.post('/', async (req, res) => {
     });
 
     const clasificacionMensaje = clasificarMensaje(text);
-  
+
     if (resultado.conversacion.estado !== "activa") {
       console.log("Conversación no activa. El agente no responde.");
       return;
     }
 
-    if(clasificacionMensaje === 'saludo'){
+    if (clasificacionMensaje === 'saludo') {
       const respuestaPredefinida = responderMensajePredefinido('saludo');
-      if(respuestaPredefinida !== null){
+      if (respuestaPredefinida !== null) {
         const wamidRta = await enviarMensaje(resultado.cliente.telefono, respuestaPredefinida);
-        
-            await mensajeRepo.crear({
-              conversacionId: resultado.conversacion.id,
-              rol: "agente",
-              contenido: respuestaPredefinida,
-              wamid: wamidRta,
-            });
-        
+
+        await mensajeRepo.crear({
+          conversacionId: resultado.conversacion.id,
+          rol: "agente",
+          contenido: respuestaPredefinida,
+          wamid: wamidRta,
+        });
+
         return;
       }
     }
 
-    if(clasificacionMensaje === 'despedida'){
+    if (clasificacionMensaje === 'despedida') {
       const respuestaPredefinida = responderMensajePredefinido('despedida');
-      if(respuestaPredefinida !== null){
+      if (respuestaPredefinida !== null) {
         const wamidRta = await enviarMensaje(resultado.cliente.telefono, respuestaPredefinida);
 
         await mensajeRepo.crear({
@@ -139,7 +154,7 @@ router.post('/', async (req, res) => {
     }
     await conversacionRepo.marcarRespuestaPendiente(
       resultado.conversacion.id,
-      4000
+      4500
     );
 
     console.log(

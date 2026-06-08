@@ -5,6 +5,7 @@ import { MensajeRepository } from "../infraestructure/repositories/MensajeReposi
 import { NegocioRepository } from "../infraestructure/repositories/NegocioRepository";
 import { runAgentTurn } from ".";
 import { enviarMensaje } from "./whatsapp";
+import { PedidoBorrador } from "../domain/entities/Conversacion";
 
 const WORKER_INTERVAL_MS = 2000;
 const PENDING_LIMIT = 10;
@@ -92,10 +93,12 @@ async function procesarConversacionPendiente(
   conversacionId: string
 ): Promise<void> {
   const conversacion = await conversacionRepo.buscarPorId(conversacionId);
-
+  
   if (!conversacion) {
     return;
   }
+
+  const pedidoBorrador:PedidoBorrador = conversacion.pedidoBorrador;
 
   if (conversacion.estado !== "activa") {
     await conversacionRepo.limpiarRespuestaPendiente(conversacion.id);
@@ -115,6 +118,11 @@ async function procesarConversacionPendiente(
     return;
   }
 
+  if(negocio.activo === false){
+    await conversacionRepo.limpiarRespuestaPendiente(conversacion.id);
+    return;
+  }
+
   const ultimoMensajeCliente = await mensajeRepo.buscarUltimoMensajeCliente(
     conversacion.id
   );
@@ -124,7 +132,7 @@ async function procesarConversacionPendiente(
     return;
   }
 
-  const historial = await mensajeRepo.buscarPorConversacion(conversacion.id);
+  const historial = (await mensajeRepo.buscarPorConversacion(conversacion.id)).slice(-4);
 
   const respuesta = await runAgentTurn({
     negocio,
@@ -132,15 +140,23 @@ async function procesarConversacionPendiente(
     conversacion,
     historial,
     mensajeCliente: ultimoMensajeCliente.contenido,
+    pedidoBorrador
   });
 
   if (respuesta) {
-    const wamidRta = await enviarMensaje(cliente.telefono, respuesta);
+
+    console.log(respuesta)
+
+    await conversacionRepo.actualizarPedidoBorrador(
+    conversacion.id,
+    respuesta.pedidoBorrador
+  );
+    const wamidRta = await enviarMensaje(cliente.telefono, respuesta.mensajeCliente);
 
     await mensajeRepo.crear({
       conversacionId: conversacion.id,
       rol: "agente",
-      contenido: respuesta,
+      contenido: respuesta.mensajeCliente,
       wamid: wamidRta,
     });
 

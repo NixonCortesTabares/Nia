@@ -8,17 +8,18 @@ import {
 } from "@google/genai";
 import {
   ChatCompletionMessageParam,
+  ChatCompletionMessageToolCall,
   ChatCompletionToolMessageParam,
 } from "openai/resources/chat/completions";
 import { Negocio } from "../domain/entities/Negocio";
 import { Cliente } from "../domain/entities/Cliente";
-import { Conversacion } from "../domain/entities/Conversacion";
+import { Conversacion, PedidoBorrador } from "../domain/entities/Conversacion";
 import { Mensaje } from "../domain/entities/Mensaje";
 import { tools } from "./tools";
 import { toolsGroq } from "./tools.groq";
 import { toolsGemini } from "./tools.gemini";
 import { buildSystemPrompt } from "./prompt";
-import { ejecutarHerramienta } from "./handlers";
+import { ejecutarHerramienta, ToolResultado } from "./handlers";
 
 type AgentTurnParams = {
   negocio: Negocio;
@@ -26,6 +27,12 @@ type AgentTurnParams = {
   conversacion: Conversacion;
   historial: Mensaje[];
   mensajeCliente: string;
+  pedidoBorrador: PedidoBorrador;
+};
+
+export type AgentTurnResult = {
+  mensajeCliente: string;
+  pedidoBorrador: PedidoBorrador;
 };
 
 type ClaudeMessage = {
@@ -61,7 +68,7 @@ const MAX_TOOL_STEPS = 4;
 
 export async function runAgentTurn(
   params: AgentTurnParams
-): Promise<string | null> {
+): Promise<AgentTurnResult | null> {
   const provider = process.env.LLM_PROVIDER ?? "anthropic";
   console.log("LLM provider usado:", provider);
 
@@ -78,7 +85,7 @@ export async function runAgentTurn(
 
 export async function runAgentTurnAnthropic(
   params: AgentTurnParams
-): Promise<string | null> {
+): Promise<AgentTurnResult | null> {
   if (params.negocio.activo === false) {
     return null;
   }
@@ -106,7 +113,7 @@ export async function runAgentTurnAnthropic(
 
       if (iteraciones >= MAX_ITERACIONES) {
         console.error('Límite de iteraciones alcanzado — posible loop infinito');
-        return "En este momento no puedo completar tu solicitud. Intenta de nuevo.";
+        return { mensajeCliente: "En este momento no puedo completar tu solicitud. Intenta de nuevo.", pedidoBorrador: params.pedidoBorrador, };
       }
       iteraciones++;
       const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -119,7 +126,10 @@ export async function runAgentTurnAnthropic(
         body: JSON.stringify({
           model: "claude-haiku-4-5-20251001",
           max_tokens: 1024,
-          system: buildSystemPrompt(params.negocio),
+          system: buildSystemPromptConBorrador(
+            params.negocio,
+            params.pedidoBorrador
+          ),
           tools,
           messages,
         }),
@@ -131,8 +141,10 @@ export async function runAgentTurnAnthropic(
 
       // Claude terminó — devuelve el texto
       if (data.stop_reason === "end_turn") {
-        const textBlock = data.content.find(b => b.type === "text");
-        return textBlock?.text ?? "";
+        const textBlock = data.content.find((b) => b.type === "text");
+        const text = textBlock?.text ?? "";
+
+        return parseAgentStructuredResponse(text, params.pedidoBorrador);
       }
 
       // Claude quiere usar herramientas
@@ -140,7 +152,7 @@ export async function runAgentTurnAnthropic(
         const toolUseBlocks = data.content.filter(b => b.type === "tool_use");
 
         if (toolUseBlocks.length === 0) {
-          return "No pude procesar tu mensaje en este momento.";
+          return { mensajeCliente: "No pude procesar tu mensaje en este momento.", pedidoBorrador: params.pedidoBorrador };
         }
 
         // Agregar respuesta del assistant al historial
@@ -181,18 +193,18 @@ export async function runAgentTurnAnthropic(
       }
 
       // Caso inesperado
-      return "No pude procesar tu mensaje en este momento.";
+      return { mensajeCliente: "No pude procesar tu mensaje en este momento.", pedidoBorrador: params.pedidoBorrador };
     }
 
   } catch (error) {
     console.error("Error en runAgentTurnAnthropic:", error);
-    return "Tuve un problema procesando tu mensaje. Intenta de nuevo.";
+    return { mensajeCliente: "Tuve un problema procesando tu mensaje. Intenta de nuevo.", pedidoBorrador: params.pedidoBorrador };
   }
 }
 
 export async function runAgentTurnGroq(
   params: AgentTurnParams
-): Promise<string | null> {
+): Promise<AgentTurnResult | null> {
   if (params.negocio.activo === false) {
     return null;
   }
@@ -204,7 +216,10 @@ export async function runAgentTurnGroq(
     const messages: ChatCompletionMessageParam[] = [
       {
         role: "system",
-        content: buildSystemPrompt(params.negocio),
+        content: buildSystemPromptConBorrador(
+          params.negocio,
+          params.pedidoBorrador
+        ),
       },
       ...params.historial
         .filter((mensaje) => hasContent(mensaje.contenido))
@@ -224,112 +239,155 @@ export async function runAgentTurnGroq(
       });
     }
 
-    for (let step = 1; step <= MAX_TOOL_STEPS; step++) {
-      console.log("Groq paso de herramientas:", step);
-
-      const response = await client.chat.completions.create({
-        model,
-        max_tokens: 1024,
-        tools: toolsGroq,
-        tool_choice: "auto",
-        messages,
-      });
-
-      const choice = response.choices[0];
-
-      if (!choice || !choice.message) {
-        console.error("Groq no devolvio choice.message.");
-        return "No pude procesar tu mensaje en este momento.";
-      }
-
-      const assistantMessage = choice.message;
-      const toolCalls = assistantMessage.tool_calls ?? [];
-      console.log("Groq tuvo tool_calls:", toolCalls.length > 0);
-
-      if (toolCalls.length === 0) {
-        const finalText = assistantMessage.content?.trim();
-
-        if (finalText) {
-          return finalText;
-        }
-
-        return "No pude generar una respuesta final en este momento.";
-      }
-
-      messages.push({
-        role: "assistant",
-        content: assistantMessage.content ?? "",
-        tool_calls: toolCalls,
-      });
-
-      for (const toolCall of toolCalls) {
-        if (toolCall.type !== "function") {
-          console.error("Groq devolvio un tool_call no soportado:", toolCall.type);
-          continue;
-        }
-
-        const toolName = toolCall.function.name;
-        console.log("Tool ejecutada:", toolName);
-
-        const toolInput = parseToolArguments(toolCall.function.arguments);
-        console.log("Input de tool:", JSON.stringify(toolInput, null, 2));
-
-        const resultado = await ejecutarHerramienta(
-          toolName,
-          toolInput,
-          params.negocio.id,
-          params.conversacion.id,
-          params.cliente.id
-        );
-
-        console.log("Resultado de tool:", JSON.stringify(resultado, null, 2));
-
-        const toolMessage: ChatCompletionToolMessageParam = {
-          role: "tool",
-          tool_call_id: toolCall.id,
-          content: stringifyToolResult(resultado),
-        };
-
-        messages.push(toolMessage);
-      }
-    }
-
-    console.error("Groq alcanzó el límite máximo de pasos de herramientas.");
-    messages.push({
-      role: "user",
-      content:
-        "Con la información disponible, responde al cliente de forma breve y clara. No intentes usar más herramientas.",
-    });
-
-    const finalResponse = await client.chat.completions.create({
+    // Primera y única llamada con tools
+    const response = await client.chat.completions.create({
       model,
       max_tokens: 1024,
+      tools: toolsGroq,
+      tool_choice: "auto",
+      parallel_tool_calls: false,
       messages,
     });
 
-    const finalText = finalResponse.choices[0]?.message?.content?.trim();
+    const choice = response.choices[0];
 
-    if (finalText) {
-      return finalText;
+    if (!choice?.message) {
+      return {
+        mensajeCliente: "No pude procesar tu mensaje en este momento.",
+        pedidoBorrador: params.pedidoBorrador,
+      };
     }
 
-    return "No pude completar la solicitud en este momento.";
+    const assistantMessage = choice.message;
+    const toolCalls = assistantMessage.tool_calls ?? [];
+
+    console.log("Groq tuvo tool_calls:", toolCalls.length > 0);
+    console.log("Cantidad de tool_calls:", toolCalls.length);
+
+    // Caso 1: no usó tool, debe responder JSON estructurado
+    if (toolCalls.length === 0) {
+      const finalText = assistantMessage.content?.trim();
+
+      if (!finalText) {
+        return {
+          mensajeCliente: "No pude generar una respuesta final en este momento.",
+          pedidoBorrador: params.pedidoBorrador,
+        };
+      }
+
+      return parseAgentStructuredResponse(finalText, params.pedidoBorrador);
+    }
+
+    // Caso 2: si manda más de una tool, solo ejecutamos la primera
+    if (toolCalls.length > 1) {
+      console.warn(
+        "Groq devolvió más de una tool_call. Solo se ejecutará la primera.",
+        toolCalls.map((toolCall) =>
+          toolCall.type === "function" ? toolCall.function.name : toolCall.type
+        )
+      );
+    }
+
+    const toolCall = toolCalls[0];
+
+    if (!toolCall || toolCall.type !== "function") {
+      return {
+        mensajeCliente: "No pude procesar esta acción en este momento.",
+        pedidoBorrador: params.pedidoBorrador,
+      };
+    }
+
+    const toolName = toolCall.function.name;
+    const toolInput = parseToolArguments(toolCall.function.arguments);
+
+    console.log("Tool ejecutada:", toolName);
+    console.log("Input de tool:", JSON.stringify(toolInput, null, 2));
+
+    const resultado = await ejecutarHerramienta(
+      toolName,
+      toolInput,
+      params.negocio.id,
+      params.conversacion.id,
+      params.cliente.id
+    );
+
+    console.log("Resultado de tool:", JSON.stringify(resultado, null, 2));
+
+    // Caso 3: la tool fue exitosa, responde backend y no vuelve al modelo
+    if (resultado.ok === true) {
+      return {
+        mensajeCliente: resultado.mensaje,
+        pedidoBorrador: params.pedidoBorrador,
+      };
+    }
+
+    // Caso 4: la tool falló, responde el agente sin usar más tools
+    messages.push({
+      role: "assistant",
+      content: assistantMessage.content ?? "",
+      tool_calls: [toolCall],
+    });
+
+    messages.push({
+      role: "tool",
+      tool_call_id: toolCall.id,
+      content: JSON.stringify(resultado),
+    });
+
+    messages.push({
+      role: "user",
+      content: `
+La herramienta "${toolName}" no pudo completar la acción.
+
+Resultado:
+${JSON.stringify(resultado, null, 2)}
+
+Explícale al cliente de forma breve qué debe corregir o aclarar.
+No confirmes que el pedido fue registrado.
+No uses herramientas.
+Responde en el formato JSON estructurado obligatorio con mensaje_cliente y pedido_borrador.
+      `,
+    });
+
+    const responseSinTools = await client.chat.completions.create({
+      model,
+      max_tokens: 700,
+      messages,
+    });
+
+    const textoFinal = responseSinTools.choices[0]?.message?.content?.trim();
+
+    if (!textoFinal) {
+      return {
+        mensajeCliente: resultado.mensaje,
+        pedidoBorrador: params.pedidoBorrador,
+      };
+    }
+
+    return parseAgentStructuredResponse(textoFinal, params.pedidoBorrador);
   } catch (error) {
     console.error("Error en runAgentTurnGroq:", error);
-    return "Tuve un problema procesando tu mensaje. Intenta de nuevo.";
+
+    return {
+      mensajeCliente: "Tuve un problema procesando tu mensaje. Intenta de nuevo.",
+      pedidoBorrador: params.pedidoBorrador,
+    };
   }
 }
 
 export async function runAgentTurnGemini(
   params: AgentTurnParams
-): Promise<string | null> {
+): Promise<AgentTurnResult | null> {
   if (params.negocio.activo === false) {
     return null;
   }
 
   if (!process.env.GEMINI_API_KEY) {
     console.error("GEMINI_API_KEY no esta configurada para Gemini.");
-    return "El agente no está configurado correctamente.";
+    return {
+      mensajeCliente: "El agente no está configurado correctamente.",
+      pedidoBorrador: params.pedidoBorrador,
+    };
   }
 
   try {
@@ -353,105 +411,146 @@ export async function runAgentTurnGemini(
       });
     }
 
-    const systemInstruction = buildSystemPrompt(params.negocio);
+    const systemInstruction = buildSystemPromptConBorrador(
+      params.negocio,
+      params.pedidoBorrador
+    );
+
     const geminiTools = [
       {
         functionDeclarations: toolsGemini,
       },
     ];
 
-    for (let step = 1; step <= MAX_TOOL_STEPS; step++) {
-      console.log("Gemini paso de herramientas:", step);
-
-      const response = await geminiClient.models.generateContent({
-        model,
-        contents,
-        config: {
-          systemInstruction,
-          maxOutputTokens: 1024,
-          tools: geminiTools,
-          toolConfig: {
-            functionCallingConfig: {
-              mode: FunctionCallingConfigMode.AUTO,
-            },
+    // Primera y única llamada con tools
+    const response = await geminiClient.models.generateContent({
+      model,
+      contents,
+      config: {
+        systemInstruction,
+        maxOutputTokens: 1024,
+        tools: geminiTools,
+        toolConfig: {
+          functionCallingConfig: {
+            mode: FunctionCallingConfigMode.AUTO,
           },
         },
-      });
+      },
+    });
 
-      const functionCalls = response.functionCalls ?? [];
-      console.log("Gemini tuvo function calls:", functionCalls.length > 0);
+    const functionCalls = response.functionCalls ?? [];
 
-      if (functionCalls.length === 0) {
-        const finalText = response.text?.trim();
+    console.log("Gemini tuvo function calls:", functionCalls.length > 0);
+    console.log("Cantidad de function calls:", functionCalls.length);
 
-        if (finalText) {
-          return finalText;
-        }
+    // Caso 1: no usó tool, entonces debe responder JSON estructurado
+    if (functionCalls.length === 0) {
+      const finalText = response.text?.trim();
 
-        return "No pude generar una respuesta final en este momento.";
+      if (!finalText) {
+        return {
+          mensajeCliente: "No pude generar una respuesta final en este momento.",
+          pedidoBorrador: params.pedidoBorrador,
+        };
       }
 
-      contents.push({
-        role: "model",
-        parts: functionCalls.map<Part>((functionCall) => ({
-          functionCall,
-        })),
-      });
-
-      const functionResponseParts: Part[] = [];
-
-      for (const functionCall of functionCalls) {
-        if (!functionCall.name) {
-          console.error("Gemini devolvio functionCall sin name.");
-          continue;
-        }
-
-        const toolName = functionCall.name;
-        const toolInput = normalizarGeminiArgs(functionCall.args);
-        console.log("Tool ejecutada:", toolName);
-        console.log("Input de tool:", JSON.stringify(toolInput, null, 2));
-
-        const resultado = await ejecutarHerramienta(
-          toolName,
-          toolInput,
-          params.negocio.id,
-          params.conversacion.id,
-          params.cliente.id
-        );
-
-        console.log("Resultado de tool:", JSON.stringify(resultado, null, 2));
-
-        functionResponseParts.push({
-          functionResponse: buildGeminiFunctionResponse(functionCall, resultado),
-        });
-      }
-
-      contents.push({
-        role: "user",
-        parts: functionResponseParts,
-      });
+      return parseAgentStructuredResponse(finalText, params.pedidoBorrador);
     }
 
-    console.error("Gemini alcanzó el límite máximo de pasos de herramientas.");
-    const finalContents: Content[] = [
+    // Caso 2: si Gemini pide más de una tool, solo ejecutamos la primera
+    if (functionCalls.length > 1) {
+      console.warn(
+        "Gemini devolvió más de una function call. Solo se ejecutará la primera.",
+        functionCalls.map((functionCall) => functionCall.name)
+      );
+    }
+
+    const functionCall = functionCalls[0];
+
+    if (!functionCall || !functionCall.name) {
+      console.error("Gemini devolvió functionCall inválida.");
+
+      return {
+        mensajeCliente: "No pude procesar esta acción en este momento.",
+        pedidoBorrador: params.pedidoBorrador,
+      };
+    }
+
+    const toolName = functionCall.name;
+    const toolInput = normalizarGeminiArgs(functionCall.args);
+
+    console.log("Tool ejecutada:", toolName);
+    console.log("Input de tool:", JSON.stringify(toolInput, null, 2));
+
+    const resultado = await ejecutarHerramienta(
+      toolName,
+      toolInput,
+      params.negocio.id,
+      params.conversacion.id,
+      params.cliente.id
+    );
+
+    console.log("Resultado de tool:", JSON.stringify(resultado, null, 2));
+
+    // Caso 3: la tool fue exitosa.
+    // Responde backend directamente. No volvemos a llamar a Gemini.
+    if (resultado.ok === true) {
+      return {
+        mensajeCliente: resultado.mensaje,
+        pedidoBorrador: params.pedidoBorrador,
+      };
+    }
+
+    // Caso 4: la tool falló.
+    // Ahora sí dejamos que Gemini explique el error, pero SIN herramientas.
+    const contentsSinTools: Content[] = [
       ...contents,
       {
         role: "user",
         parts: [
           {
-            text: "Con la información disponible, responde al cliente de forma breve y clara. No intentes usar más herramientas.",
+            text: `
+La herramienta "${toolName}" no pudo completar la acción.
+
+Resultado de la herramienta:
+${JSON.stringify(resultado, null, 2)}
+
+Explícale al cliente de forma breve qué debe corregir o aclarar.
+No confirmes que el pedido fue registrado.
+No uses herramientas.
+
+Responde en el formato JSON estructurado obligatorio:
+{
+  "mensaje_cliente": "texto que se enviará al cliente",
+  "pedido_borrador": {
+    "nombre_cliente": string | null,
+    "telefono_cliente": string | null,
+    "tipo_entrega": "domicilio" | "recoger_en_local" | "consumo_en_local",
+    "direccion_entrega": string | null,
+    "metodo_pago": "efectivo" | "transferencia" | null,
+    "items": [
+      {
+        "nombre_producto": string,
+        "cantidad": number,
+        "extras": string[],
+        "notas": string | null
+      }
+    ],
+    "notas": string | null
+  }
+}
+            `,
           },
         ],
       },
     ];
 
-    const finalResponse = await geminiClient.models.generateContent({
+    const responseSinTools = await geminiClient.models.generateContent({
       model,
-      contents: finalContents,
+      contents: contentsSinTools,
       config: {
         systemInstruction,
-        maxOutputTokens: 1024,
-        tools: geminiTools,
+        maxOutputTokens: 700,
         toolConfig: {
           functionCallingConfig: {
             mode: FunctionCallingConfigMode.NONE,
@@ -460,16 +559,23 @@ export async function runAgentTurnGemini(
       },
     });
 
-    const finalText = finalResponse.text?.trim();
+    const textoFinal = responseSinTools.text?.trim();
 
-    if (finalText) {
-      return finalText;
+    if (!textoFinal) {
+      return {
+        mensajeCliente: resultado.mensaje,
+        pedidoBorrador: params.pedidoBorrador,
+      };
     }
 
-    return "No pude completar la solicitud en este momento.";
+    return parseAgentStructuredResponse(textoFinal, params.pedidoBorrador);
   } catch (error) {
     console.error("Error en runAgentTurnGemini:", error);
-    return "Tuve un problema procesando tu mensaje. Intenta de nuevo.";
+
+    return {
+      mensajeCliente: "Tuve un problema procesando tu mensaje. Intenta de nuevo.",
+      pedidoBorrador: params.pedidoBorrador,
+    };
   }
 }
 
@@ -546,5 +652,208 @@ function stringifyToolResult(resultado: unknown): string {
 
   return JSON.stringify(
     resultado ?? { ok: false, message: "La herramienta no devolvió resultado." }
+  );
+}
+
+function buildPedidoBorradorContext(pedidoBorrador: PedidoBorrador): string {
+  return `
+MEMORIA ESTRUCTURADA DEL PEDIDO
+
+Este es el pedido_borrador actual de la conversación:
+
+${JSON.stringify(pedidoBorrador, null, 2)}
+
+Usa este objeto como la memoria estructurada del pedido actual.
+
+REGLAS PARA ACTUALIZAR pedido_borrador
+
+- Conserva todos los datos existentes salvo que el cliente los corrija explícitamente.
+- Si el cliente aporta nuevos datos, actualiza únicamente los campos correspondientes.
+- Si el cliente cambia un producto, una cantidad, un extra, una nota, el nombre, el teléfono, la dirección o el método de pago, refleja ese cambio en pedido_borrador.
+- Si el cliente no especifica cantidad de un producto nuevo, usa cantidad = 1.
+- Si el cliente no especifica extras para un producto nuevo, usa extras = [].
+- Si el cliente no especifica notas para un producto nuevo, usa notas = null.
+- tipo_entrega debe conservarse como "domicilio" por defecto, salvo que el cliente diga explícitamente que recoge en local o consume en el local.
+- No inventes productos, precios, promociones, direcciones, teléfonos ni métodos de pago.
+- No elimines items existentes a menos que el cliente indique claramente que quiere quitarlos, cambiarlos o reemplazar el pedido.
+
+FORMATO TÉCNICO OBLIGATORIO
+
+Cuando no estés llamando una herramienta, responde únicamente con JSON válido.
+No uses markdown.
+No uses bloques de código.
+No escribas texto antes ni después del JSON.
+
+Tu respuesta debe tener exactamente esta estructura:
+
+{
+  "mensaje_cliente": "texto natural que se enviará al cliente por WhatsApp",
+  "pedido_borrador": {
+    "nombre_cliente": string | null,
+    "telefono_cliente": string | null,
+    "tipo_entrega": "domicilio" | "recoger_en_local" | "consumo_en_local",
+    "direccion_entrega": string | null,
+    "metodo_pago": "efectivo" | "transferencia" | null,
+    "items": [
+      {
+        "nombre_producto": string,
+        "cantidad": number,
+        "extras": string[],
+        "notas": string | null
+      }
+    ],
+    "notas": string | null
+  }
+}
+
+El cliente nunca verá el JSON completo.
+El sistema guardará pedido_borrador y enviará únicamente mensaje_cliente.
+
+IMPORTANTE
+
+Aunque en el historial veas mensajes anteriores del asistente escritos como texto normal, tu respuesta actual debe seguir siendo JSON válido.
+El sistema hará JSON.parse() de tu respuesta. Si respondes texto normal, el procesamiento fallará.
+`;
+}
+
+function buildSystemPromptConBorrador(
+  negocio: Negocio,
+  pedidoBorrador: PedidoBorrador
+): string {
+  return `${buildSystemPrompt(negocio)}
+
+${buildPedidoBorradorContext(pedidoBorrador)}`;
+}
+
+function parseAgentStructuredResponse(
+  text: string,
+  pedidoBorradorFallback: PedidoBorrador
+): AgentTurnResult {
+  try {
+    const cleaned = limpiarJsonDelModelo(text);
+    const parsed = JSON.parse(cleaned) as unknown;
+
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error("La respuesta del agente no es un objeto JSON.");
+    }
+
+    const data = parsed as {
+      mensaje_cliente?: unknown;
+      pedido_borrador?: unknown;
+    };
+
+    if (typeof data.mensaje_cliente !== "string" || !data.mensaje_cliente.trim()) {
+      throw new Error("La respuesta del agente no tiene mensaje_cliente válido.");
+    }
+
+    if (!esPedidoBorradorValido(data.pedido_borrador)) {
+      throw new Error("La respuesta del agente no tiene pedido_borrador válido.");
+    }
+
+    return {
+      mensajeCliente: data.mensaje_cliente.trim(),
+      pedidoBorrador: data.pedido_borrador,
+    };
+  } catch (error) {
+    console.error("Error parseando respuesta JSON del agente:", error);
+    console.error("Texto recibido del agente:", text);
+
+    return {
+      mensajeCliente:
+        "Tuve un problema procesando el pedido. ¿Podrías repetirlo de forma breve?",
+      pedidoBorrador: pedidoBorradorFallback,
+    };
+  }
+}
+
+function limpiarJsonDelModelo(text: string): string {
+  return text
+    .trim()
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/```$/i, "")
+    .trim();
+}
+
+function esPedidoBorradorValido(valor: unknown): valor is PedidoBorrador {
+  if (!valor || typeof valor !== "object" || Array.isArray(valor)) {
+    return false;
+  }
+
+  const borrador = valor as PedidoBorrador;
+
+  if (
+    borrador.tipo_entrega !== "domicilio" &&
+    borrador.tipo_entrega !== "recoger_en_local" &&
+    borrador.tipo_entrega !== "consumo_en_local"
+  ) {
+    return false;
+  }
+
+  if (
+    borrador.metodo_pago !== null &&
+    borrador.metodo_pago !== "efectivo" &&
+    borrador.metodo_pago !== "transferencia"
+  ) {
+    return false;
+  }
+
+  if (!Array.isArray(borrador.items)) {
+    return false;
+  }
+
+  for (const item of borrador.items) {
+    if (!item || typeof item !== "object") return false;
+    if (typeof item.nombre_producto !== "string") return false;
+    if (!Number.isInteger(item.cantidad) || item.cantidad < 1) return false;
+    if (!Array.isArray(item.extras)) return false;
+
+    for (const extra of item.extras) {
+      if (typeof extra !== "string") return false;
+    }
+
+    if (item.notas !== null && typeof item.notas !== "string") {
+      return false;
+    }
+  }
+
+  if (
+    borrador.nombre_cliente !== null &&
+    typeof borrador.nombre_cliente !== "string"
+  ) {
+    return false;
+  }
+
+  if (
+    borrador.telefono_cliente !== null &&
+    typeof borrador.telefono_cliente !== "string"
+  ) {
+    return false;
+  }
+
+  if (
+    borrador.direccion_entrega !== null &&
+    typeof borrador.direccion_entrega !== "string"
+  ) {
+    return false;
+  }
+
+  if (borrador.notas !== null && typeof borrador.notas !== "string") {
+    return false;
+  }
+
+  return true;
+}
+
+function esToolResultado(valor: unknown): valor is ToolResultado {
+  if (!valor || typeof valor !== "object" || Array.isArray(valor)) {
+    return false;
+  }
+
+  const resultado = valor as ToolResultado;
+
+  return (
+    typeof resultado.ok === "boolean" &&
+    typeof resultado.mensaje === "string"
   );
 }
