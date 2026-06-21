@@ -1,3 +1,4 @@
+import { infoCategoria } from '../../application/menu/BuscarInfoExtrasDeCategoriaUseCase';
 import pool from '../../config/db';
 import { ActualizarCategoriaDTO, Categoria, CrearCategoriaDTO } from '../../domain/entities/Categoria';
 import { ICategoriaRepository } from '../../domain/repositories/ICategoriaRepository';
@@ -21,6 +22,43 @@ function mapCategoria(row: CategoriaRow): Categoria {
 }
 
 export class CategoriaRepository implements ICategoriaRepository {
+  async obtenerInfoExtrasCategoria(id: string, negocioId: string): Promise<infoCategoria> {
+    const result = await pool.query<infoCategoria>(
+      `
+        SELECT
+          c.nombre,
+          c.activo,
+          COALESCE(
+            jsonb_agg(
+              jsonb_build_object(
+                'id', e.id,
+                'nombre', e.nombre,
+                'valor', e.valor,
+                'activo', e.activo
+              )
+              ORDER BY e.nombre ASC
+            ) FILTER (WHERE e.id IS NOT NULL),
+            '[]'::jsonb
+          ) AS extras
+        FROM categorias c
+        LEFT JOIN categorias_extras ce
+          ON ce.categoria_id = c.id
+        AND ce.negocio_id = c.negocio_id
+        AND ce.activo = true
+        LEFT JOIN extras e
+          ON e.id = ce.extra_id
+        AND e.negocio_id = c.negocio_id
+        WHERE c.negocio_id =$1
+        AND c.id = $2
+        GROUP BY
+          c.id,
+          c.nombre,
+          c.activo
+        ORDER BY c.nombre ASC;`, [negocioId, id]
+    );
+
+    return result.rows[0];
+  }
   async crear(data: CrearCategoriaDTO): Promise<Categoria> {
     const result = await pool.query<CategoriaRow>(
       `INSERT INTO categorias (negocio_id, nombre)

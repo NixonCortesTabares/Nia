@@ -1,4 +1,4 @@
-export async function enviarMensaje(to: string, text: string): Promise<string> {
+export async function enviarMensaje(to: string, text: string, phoneId: string): Promise<string> {
 
     try {
 
@@ -12,7 +12,7 @@ export async function enviarMensaje(to: string, text: string): Promise<string> {
         console.log("Mensaje simulado a WhatsApp:");
         console.log("Para:", to);
         console.log("Texto:", text);
-        const url = `https://graph.facebook.com/v20.0/${process.env.WS_PHONE_NUMBER_ID}/messages`;
+        const url = `https://graph.facebook.com/v20.0/${phoneId}/messages`;
 
         const response = await fetch( url, {
             method: "POST",

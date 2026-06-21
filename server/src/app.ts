@@ -1,11 +1,16 @@
-import express from 'express';
+import express, { Router } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import pool from './config/db';
-import authRoutes from './infraestructure/http/routes/auth.routes';
+import authRoutes from './infraestructure/http/routes/publicas/auth.routes';
 import whatsappWebhook from './webhooks/whatsapp';
 import { startAgentWorker } from './agent/agentWorker';
-
+import productRoutes from './infraestructure/http/routes/privadas/productos.routes';
+import pedidosRoutes from './infraestructure/http/routes/privadas/pedidos.routes';
+import categoriasRoutes from './infraestructure/http/routes/privadas/categorias.routes';
+import negociosRoutes from './infraestructure/http/routes/privadas/negocios.routes';
+import extrasRoutes from './infraestructure/http/routes/privadas/extras.routes';
+import menuRoutes from './infraestructure/http/routes/publicas/menu.routes';
 dotenv.config();
 
 const app = express();
@@ -18,13 +23,23 @@ app.use(express.json({
     req.rawBody = buf;
   }
 }));
-app.use('/api/auth', authRoutes);
-app.use('/webhook', whatsappWebhook);
+
+const apiRouter = Router();
+
+apiRouter.use('/auth', authRoutes);
+apiRouter.use('/webhook', whatsappWebhook);
+apiRouter.use('/productos', productRoutes);
+apiRouter.use('/pedidos', pedidosRoutes);
+apiRouter.use('/categorias', categoriasRoutes);
+apiRouter.use('/negocios', negociosRoutes);
+apiRouter.use('/extras', extrasRoutes)
+apiRouter.use('/menu', menuRoutes)
+app.use('/api', apiRouter);
 
 startAgentWorker();
 
 // Ruta de salud â€” para verificar que el servidor funciona
-app.get('/health', async (req, res) => {
+apiRouter.get('/health', async (req, res) => {
   try {
     await pool.query('SELECT 1');
     res.json({

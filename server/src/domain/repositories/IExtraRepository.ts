@@ -8,4 +8,5 @@ export interface IExtraRepository {
   buscarPorNombre(negocioId: string, nombre: string): Promise<Extra | null>;
   actualizar(id: string, negocioId: string, data: ActualizarExtraDTO): Promise<Extra | null>;
   desactivar(id: string, negocioId: string): Promise<Extra | null>;
+  buscarPorCategoriaId(categoriaId: string, negocioId: string): Promise<Extra[] | null>
 }

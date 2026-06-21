@@ -1,6 +1,7 @@
 import { ActualizarProductoDTO, Producto } from '../../domain/entities/Producto';
 import { ICategoriaRepository } from '../../domain/repositories/ICategoriaRepository';
 import { IProductoRepository } from '../../domain/repositories/IProductoRepository';
+import { AppError } from '../../infraestructure/http/AppError';
 
 export interface ActualizarProductoUseCaseDTO {
   id: string;
@@ -18,7 +19,7 @@ export class ActualizarProductoUseCase {
     const producto = await this.productoRepository.buscarPorId(input.id, input.negocioId);
 
     if (!producto) {
-      return null;
+      throw new Error('Este producto no existe.');
     }
 
     if (input.data.nombre !== undefined && !input.data.nombre.trim()) {

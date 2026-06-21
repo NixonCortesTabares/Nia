@@ -29,6 +29,22 @@ export class RegisterUseCase {
   ) {}
 
   async execute(data: RegisterDTO): Promise<RegisterResult> {
+
+    if(!data.email){
+      throw new Error('Debe proporcionar un correo electronico válido.');
+    }
+
+    if(!data.negocioNombre || data.negocioNombre.length < 2){
+      throw new Error('Debe proporcionar un nombre para el negocio válido.');
+    }
+
+    if(!data.nombre || data.nombre.length < 2){
+      throw new Error('Debe proporcionar un nombre para el dueño válido.');
+    }
+
+    if(!data.password || data.password.length < 4){
+      throw new Error('Debe proporcionar una contraseña de al menos 4 caracteres');
+    }
     // Verificar que el email no esté registrado
     const usuarioExistente = await this.usuarioRepository
       .buscarPorEmail(data.email);

@@ -42,12 +42,31 @@ export interface GenerarPedidoResumen {
 
 export function normalizarTexto(valor: string): string {
   return valor
-    .trim()
+    // Separa nombres tipo SuperMegaHiperGiga -> Super Mega Hiper Giga
+    .replace(/([a-záéíóúñ])([A-ZÁÉÍÓÚÑ])/g, "$1 $2")
     .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
-    .replace(/\s+/g, ' ')
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+
+    // 4k, 4 k, 10k -> 4000, 10000
+    .replace(/\b(\d+)\s*k\b/g, (_match, numero: string) => {
+      return String(Number(numero) * 1000);
+    })
+
+    // Casos escritos en palabras
+    .replace(/\bcuatro\s+mil\b/g, "4000")
+    .replace(/\b4\s+mil\b/g, "4000")
+
+    // Sinónimos y errores comunes
+    .replace(/\bburger\b/g, "hamburguesa")
+    .replace(/\bburguer\b/g, "hamburguesa")
+    .replace(/\bhamburgesa\b/g, "hamburguesa")
+    .replace(/\bhamburgueza\b/g, "hamburguesa")
+    .replace(/\bsalchi\b/g, "salchipapa")
+
+    // Limpieza general
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
 }
 

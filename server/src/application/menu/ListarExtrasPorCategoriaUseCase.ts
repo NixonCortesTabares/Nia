@@ -1,28 +1,13 @@
-import { CategoriaExtra } from '../../domain/entities/CategoriaExtra';
-import { ICategoriaExtraRepository } from '../../domain/repositories/ICategoriaExtraRepository';
-import { ICategoriaRepository } from '../../domain/repositories/ICategoriaRepository';
+import { IExtraRepository } from "../../domain/repositories/IExtraRepository";
 
-export interface ListarExtrasPorCategoriaUseCaseDTO {
-  negocioId: string;
-  categoriaId: string;
-}
+export class ListarExtrasPorCategoriaUseCase{
+    constructor(private extraRepo: IExtraRepository){}
 
-export class ListarExtrasPorCategoriaUseCase {
-  constructor(
-    private categoriaExtraRepository: ICategoriaExtraRepository,
-    private categoriaRepository: ICategoriaRepository
-  ) {}
+    async execute(categoriaId: string, negocioId: string){
 
-  async execute(input: ListarExtrasPorCategoriaUseCaseDTO): Promise<CategoriaExtra[]> {
-    const categoria = await this.categoriaRepository.buscarPorId(
-      input.categoriaId,
-      input.negocioId
-    );
+        const resultado = await this.extraRepo.buscarPorCategoriaId(categoriaId, negocioId);
 
-    if (!categoria) {
-      throw new Error('Categoria no encontrada');
+        return resultado;
+
     }
-
-    return this.categoriaExtraRepository.buscarPorCategoria(input.negocioId, input.categoriaId);
-  }
 }

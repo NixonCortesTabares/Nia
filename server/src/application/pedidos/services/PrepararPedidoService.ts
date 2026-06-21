@@ -16,6 +16,7 @@ export class PrepararPedidoService {
     private categoriaExtraRepository: ICategoriaExtraRepository
   ) { }
 
+
   async execute(input: GenerarPedidoUseCaseDTO): Promise<CrearPedidoCompletoDTO> {
     if (!input.negocioId || !input.clienteId || !input.conversacionId) {
       throw new Error('Faltan datos internos para crear el pedido.');
@@ -90,6 +91,10 @@ export class PrepararPedidoService {
         throw new Error(`Producto no encontrado: ${nombreProducto}`);
       }
 
+      if(typeof producto === 'string'){
+        throw new Error('Error, varias opciones de productos');
+      }
+
       if (!producto.activo) {
         throw new Error(`Producto inactivo: ${producto.nombre}`);
       }
@@ -118,6 +123,14 @@ export class PrepararPedidoService {
           producto.nombre
         );
 
+        if(!extra){
+          throw new Error('Extra no encontrado.');
+        }
+
+        if(typeof extra === 'string'){
+          throw new Error('Error, varias opciones de extras');
+
+        }
         const subtotal = extra.valor * item.cantidad;
         subtotalExtras += subtotal;
         extras.push({
@@ -163,147 +176,270 @@ export class PrepararPedidoService {
     })
   }
 
-  private async resolverProductoPorTexto(
-    negocioId: string,
-    textoProducto: string
-  ) {
-    const textoNormalizado = normalizarTexto(textoProducto);
+public async resolverProductoPorTexto(
+  negocioId: string,
+  textoProducto: string
+) {
+  const productos = await this.productoRepository.buscarActivosPorNegocio(
+    negocioId
+  );
 
-    const productos = await this.productoRepository.buscarActivosPorNegocio(negocioId);
+  const productosActivos = productos.filter((producto) => producto.activo);
 
-    const productosActivos = productos.filter((producto) => producto.activo);
+  return resolverMejorCoincidencia(
+    productosActivos,
+    textoProducto,
+    "producto"
+  );
+}
 
-    const exactos = productosActivos.filter(
-      (producto) => normalizarTexto(producto.nombre) === textoNormalizado
+ public async resolverExtraPorTexto(
+  negocioId: string,
+  categoriaId: string,
+  textoExtra: string,
+  nombreProducto: string
+) {
+  const extrasActivos = await this.extraRepository.buscarActivosPorNegocio(
+    negocioId
+  );
+
+  const extrasPermitidos = [];
+
+  for (const extra of extrasActivos) {
+    const permitido = await this.categoriaExtraRepository.existeActiva(
+      negocioId,
+      categoriaId,
+      extra.id
     );
 
-    if (exactos.length === 1) {
-      return exactos[0];
+    if (permitido) {
+      extrasPermitidos.push(extra);
     }
-
-    if (exactos.length > 1) {
-      throw new Error(
-        `Encontré varias coincidencias exactas para "${textoProducto}": ${exactos
-          .map((p) => p.nombre)
-          .join(', ')}. Pide al cliente que aclare cuál desea.`
-      );
-    }
-
-    const tokens = textoNormalizado
-      .split(' ')
-      .map((token) => token.trim())
-      .filter((token) => token.length >= 3);
-
-    const coincidencias = productosActivos.filter((producto) => {
-      const nombreNormalizado = normalizarTexto(producto.nombre);
-
-      if (nombreNormalizado.includes(textoNormalizado)) {
-        return true;
-      }
-
-      if (textoNormalizado.includes(nombreNormalizado)) {
-        return true;
-      }
-
-      if (tokens.length > 0 && tokens.every((token) => nombreNormalizado.includes(token))) {
-        return true;
-      }
-
-      return false;
-    });
-
-    if (coincidencias.length === 1) {
-      return coincidencias[0];
-    }
-
-    if (coincidencias.length > 1) {
-      throw new Error(
-        `Encontré varias opciones para "${textoProducto}": ${coincidencias
-          .map((p) => p.nombre)
-          .join(', ')}. Pide al cliente que indique cuál desea.`
-      );
-    }
-
-    throw new Error(`Producto no encontrado: ${textoProducto}`);
   }
 
-  private async resolverExtraPorTexto(
-    negocioId: string,
-    categoriaId: string,
-    textoExtra: string,
-    nombreProducto: string
-  ) {
-    const textoNormalizado = normalizarTexto(textoExtra);
+  return resolverMejorCoincidencia(
+    extrasPermitidos,
+    textoExtra,
+    "extra",
+    nombreProducto
+  );
+}
+}
 
-    const extrasActivos = await this.extraRepository.buscarActivosPorNegocio(negocioId);
+type ItemConNombre = {
+  nombre: string;
+};
 
-    const extrasPermitidos = [];
+const PALABRAS_IGNORADAS = new Set([
+  "quiero",
+  "quiere",
+  "queria",
+  "deme",
+  "dame",
+  "me",
+  "das",
+  "da",
+  "un",
+  "una",
+  "uno",
+  "la",
+  "el",
+  "los",
+  "las",
+  "de",
+  "del",
+  "por",
+  "favor",
+  "para",
+  "pedido",
+  "pedir",
+  "con",
+  "sin",
+  "extra",
+  "extras",
+  "adicional",
+  "agregale",
+  "agregar",
+  "añadir",
+  "poner",
+]);
 
-    for (const extra of extrasActivos) {
-      const permitido = await this.categoriaExtraRepository.existeActiva(
-        negocioId,
-        categoriaId,
-        extra.id
-      );
+function obtenerTokensBusqueda(texto: string): string[] {
+  return normalizarTexto(texto)
+    .split(" ")
+    .map((token) => token.trim())
+    .filter((token) => token.length > 0)
+    .filter((token) => !PALABRAS_IGNORADAS.has(token))
+    .filter((token) => token.length >= 3 || /^\d+$/.test(token));
+}
 
-      if (permitido) {
-        extrasPermitidos.push(extra);
-      }
-    }
+function obtenerNumeros(tokens: string[]): string[] {
+  return tokens.filter((token) => /^\d+$/.test(token));
+}
 
-    const exactos = extrasPermitidos.filter(
-      (extra) => normalizarTexto(extra.nombre) === textoNormalizado
-    );
+function distanciaLevenshtein(a: string, b: string): number {
+  const matrix: number[][] = [];
 
-    if (exactos.length === 1) {
-      return exactos[0];
-    }
-
-    if (exactos.length > 1) {
-      throw new Error(
-        `Encontré varias coincidencias exactas para el extra "${textoExtra}" en ${nombreProducto}: ${exactos
-          .map((e) => e.nombre)
-          .join(', ')}. Pide al cliente que aclare cuál desea.`
-      );
-    }
-
-    const tokens = textoNormalizado
-      .split(' ')
-      .map((token) => token.trim())
-      .filter((token) => token.length >= 3);
-
-    const coincidencias = extrasPermitidos.filter((extra) => {
-      const nombreNormalizado = normalizarTexto(extra.nombre);
-
-      if (nombreNormalizado.includes(textoNormalizado)) {
-        return true;
-      }
-
-      if (textoNormalizado.includes(nombreNormalizado)) {
-        return true;
-      }
-
-      if (tokens.length > 0 && tokens.every((token) => nombreNormalizado.includes(token))) {
-        return true;
-      }
-
-      return false;
-    });
-
-    if (coincidencias.length === 1) {
-      return coincidencias[0];
-    }
-
-    if (coincidencias.length > 1) {
-      throw new Error(
-        `Encontré varias opciones para el extra "${textoExtra}" en ${nombreProducto}: ${coincidencias
-          .map((e) => e.nombre)
-          .join(', ')}. Pide al cliente que indique cuál desea.`
-      );
-    }
-
-    throw new Error(
-      `No encontré el extra "${textoExtra}" disponible para ${nombreProducto}.`
-    );
+  for (let i = 0; i <= b.length; i++) {
+    matrix[i] = [i];
   }
+
+  for (let j = 0; j <= a.length; j++) {
+    matrix[0][j] = j;
+  }
+
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+
+  return matrix[b.length][a.length];
+}
+
+function similitudTexto(a: string, b: string): number {
+  if (a === b) {
+    return 1;
+  }
+
+  const maxLength = Math.max(a.length, b.length);
+
+  if (maxLength === 0) {
+    return 1;
+  }
+
+  return 1 - distanciaLevenshtein(a, b) / maxLength;
+}
+
+function tokenExisteParecido(token: string, tokensObjetivo: string[]): boolean {
+  return tokensObjetivo.some((tokenObjetivo) => {
+    if (tokenObjetivo === token) {
+      return true;
+    }
+
+    if (token.length < 5 || tokenObjetivo.length < 5) {
+      return false;
+    }
+
+    return similitudTexto(token, tokenObjetivo) >= 0.84;
+  });
+}
+
+function calcularPuntajeCoincidencia(textoCliente: string, nombreItem: string): number {
+  const textoNormalizado = normalizarTexto(textoCliente);
+  const nombreNormalizado = normalizarTexto(nombreItem);
+
+  if (!textoNormalizado || !nombreNormalizado) {
+    return 0;
+  }
+
+  if (textoNormalizado === nombreNormalizado) {
+    return 100;
+  }
+
+  const tokensCliente = obtenerTokensBusqueda(textoCliente);
+  const tokensItem = obtenerTokensBusqueda(nombreItem);
+
+  if (tokensCliente.length === 0 || tokensItem.length === 0) {
+    return 0;
+  }
+
+  const numerosCliente = obtenerNumeros(tokensCliente);
+  const numerosItem = obtenerNumeros(tokensItem);
+
+  // Si el cliente escribió un número específico, no debe coincidir con productos de otro número.
+  if (
+    numerosCliente.length > 0 &&
+    !numerosCliente.every((numero) => numerosItem.includes(numero))
+  ) {
+    return 0;
+  }
+
+  let puntaje = 0;
+
+  if (nombreNormalizado.includes(textoNormalizado)) {
+    puntaje = Math.max(puntaje, 90);
+  }
+
+  if (textoNormalizado.includes(nombreNormalizado)) {
+    puntaje = Math.max(puntaje, 88);
+  }
+
+  const tokensExactos = tokensCliente.filter((token) =>
+    tokensItem.includes(token)
+  ).length;
+
+  const tokensParecidos = tokensCliente.filter((token) => {
+    if (tokensItem.includes(token)) {
+      return false;
+    }
+
+    return tokenExisteParecido(token, tokensItem);
+  }).length;
+
+  const cobertura =
+    (tokensExactos + tokensParecidos * 0.75) / tokensCliente.length;
+
+  if (cobertura === 1) {
+    puntaje = Math.max(puntaje, 78 + Math.min(tokensCliente.length * 4, 12));
+  } else if (cobertura >= 0.67) {
+    puntaje = Math.max(puntaje, 65);
+  } else if (cobertura >= 0.5) {
+    puntaje = Math.max(puntaje, 50);
+  }
+
+  if (
+    numerosCliente.length > 0 &&
+    numerosCliente.every((numero) => numerosItem.includes(numero))
+  ) {
+    puntaje += 8;
+  }
+
+  return Math.min(puntaje, 100);
+}
+
+function resolverMejorCoincidencia<T extends ItemConNombre>(
+  items: T[],
+  textoCliente: string,
+  tipo: "producto" | "extra",
+  contexto?: string
+): T | null | string{
+  const coincidencias = items
+    .map((item) => ({
+      item,
+      puntaje: calcularPuntajeCoincidencia(textoCliente, item.nombre),
+    }))
+    .filter((match) => match.puntaje >= 45)
+    .sort((a, b) => b.puntaje - a.puntaje);
+
+  const mejor = coincidencias[0];
+  const segunda = coincidencias[1];
+
+  if (!mejor) {
+    return null
+  }
+
+  const esCoincidenciaFuerte = mejor.puntaje >= 75;
+  const hayAmbiguedad =
+    segunda !== undefined && mejor.puntaje - segunda.puntaje <= 8;
+
+  if (esCoincidenciaFuerte && !hayAmbiguedad) {
+    return mejor.item;
+  }
+
+  const opciones = coincidencias
+    .slice(0, 3)
+    .map((match) => match.item.nombre)
+    .join(", ");
+
+   return opciones
+  
 }

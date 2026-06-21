@@ -6,4 +6,6 @@ export interface INegocioRepository {
   editar(id: string, data: EditarNegocioDTO): Promise<Negocio | null>;
   desactivar(id: string): Promise<Negocio | null>;
   buscarPorTelefonoWs(telefonoWs: string): Promise<Negocio | null>;
+  getMenuRestaurante(id:string):Promise<string | null>
+  //getPhoneId(id: string): Promise<String | null>;
 }

@@ -14,5 +14,5 @@ export interface ICategoriaExtraRepository {
     negocioId: string,
     data: ActualizarCategoriaExtraDTO
   ): Promise<CategoriaExtra | null>;
-  desactivar(id: string, negocioId: string): Promise<CategoriaExtra | null>;
+  desactivar(extraId: string, negocioId: string, categoriaId: string): Promise<CategoriaExtra | null>;
 }

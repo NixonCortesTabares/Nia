@@ -12,6 +12,10 @@ interface ProductoRow {
   valor: number;
   activo: boolean;
 }
+export interface MenuProductoRow {
+  categoriaNombre: string;
+  productoNombre: string;
+}
 
 function mapProducto(row: ProductoRow): Producto {
   return {
@@ -57,7 +61,38 @@ export class ProductoRepository implements IProductoRepository {
     return result.rows.map(mapProducto);
   }
 
-  async buscarActivosPorNegocio(negocioId: string): Promise<Producto[]> {
+ async buscarMenuActivoPorNegocio(
+  negocioId: string
+): Promise<MenuProductoRow[]> {
+  const result = await pool.query<{
+    categoria_nombre: string;
+    producto_nombre: string;
+  }>(
+    `
+    SELECT
+      c.nombre AS categoria_nombre,
+      p.nombre AS producto_nombre
+    FROM productos p
+    INNER JOIN categorias c
+      ON c.id = p.categoria_id
+     AND c.negocio_id = p.negocio_id
+    WHERE p.negocio_id = $1
+      AND p.activo = true
+      AND c.activo = true
+    ORDER BY
+      c.nombre ASC,
+      p.nombre ASC
+    `,
+    [negocioId]
+  );
+
+  return result.rows.map((row) => ({
+    categoriaNombre: row.categoria_nombre,
+    productoNombre: row.producto_nombre,
+  }));
+}
+
+  async buscarActivosPorNegocio(negocioId: string):Promise<Producto[]>{
     const result = await pool.query<ProductoRow>(
       `SELECT id, negocio_id, categoria_id, nombre, ingredientes, descripcion, valor, activo
        FROM productos

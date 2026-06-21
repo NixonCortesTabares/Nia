@@ -3,6 +3,7 @@ import {
   Conversacion,
   CrearConversacionDTO,
   ActualizarConversacionDTO,
+  PedidoBorradorItem,
 } from '../../domain/entities/Conversacion';
 import { PedidoBorrador } from '../../domain/entities/Conversacion';
 import { IConversacionRepository } from '../../domain/repositories/IConversacionRepository';
@@ -36,6 +37,53 @@ function mapConversacion(row: ConversacionRow): Conversacion {
 }
 
 export class ConversacionRepository implements IConversacionRepository {
+  async actualizarItemsPedidoBorrador(
+  conversacionId: string,
+  items: PedidoBorradorItem[]
+): Promise<PedidoBorrador | null> {
+  const result = await pool.query<{
+    pedido_borrador: PedidoBorrador;
+  }>(
+    `
+    UPDATE conversaciones
+    SET pedido_borrador = jsonb_set(
+      pedido_borrador,
+      '{items}',
+      $2::jsonb,
+      true
+    )
+    WHERE id = $1
+    RETURNING pedido_borrador
+    `,
+    [conversacionId, JSON.stringify(items)]
+  );
+
+  if (result.rows.length === 0) {
+    return null;
+  }
+
+  return result.rows[0].pedido_borrador;
+}
+  async obtenerPedidoBorrador(conversacionId: string): Promise<PedidoBorrador | null> {
+    const result = await pool.query<{
+      pedido_borrador: PedidoBorrador;
+    }>(
+      `
+    SELECT pedido_borrador
+    FROM conversaciones
+    WHERE id = $1
+    LIMIT 1
+    `,
+      [conversacionId]
+    );
+
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    return result.rows[0].pedido_borrador;
+  }
+
   async actualizarPedidoBorrador(
     conversacionId: string,
     pedidoBorrador: PedidoBorrador
@@ -206,10 +254,7 @@ export class ConversacionRepository implements IConversacionRepository {
       [conversacionId, mensajeClienteId]
     );
 
-    console.log(
-      "Resultado marcarProcesadaHastaMensaje:",
-      JSON.stringify(result.rows[0] ?? null)
-    );
+    //console.log("Resultado marcarProcesadaHastaMensaje:",JSON.stringify(result.rows[0] ?? null));
   }
 
   async actualizar(id: string, data: ActualizarConversacionDTO): Promise<Conversacion | null> {

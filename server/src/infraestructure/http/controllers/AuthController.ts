@@ -1,46 +1,108 @@
 import { Request, Response } from 'express';
 import { RegisterUseCase } from '../../../application/auth/RegisterUseCase';
 import { LoginUseCase } from '../../../application/auth/LoginUseCase';
-import { NegocioRepository } from '../../repositories/NegocioRepository';
-import { UsuarioRepository } from '../../repositories/UsuarioRepository';
+import { CrearUsuarioUseCase } from '../../../application/auth/CrearUsuarioUseCase';
+import { IUsuarioRepository } from '../../../domain/repositories/IUsuarioRepositoriy';
+import { INegocioRepository } from '../../../domain/repositories/INegocioRepository';
+import { CrearUsuarioDTO } from '../../../domain/entities/Usuario';
 
 export class AuthController {
-  async register(req: Request, res: Response): Promise<void> {
-    try {
-      const negocioRepository = new NegocioRepository();
-      const usuarioRepository = new UsuarioRepository();
-      const registerUseCase = new RegisterUseCase(negocioRepository, usuarioRepository);
 
+  constructor(private usuarioRepo: IUsuarioRepository, private negocioRepo: INegocioRepository) { }
+  async register(req: Request, res: Response) {
+    try {
+
+      const registerSecret = process.env.REGISTER_SECRET;
+
+      if (!registerSecret) {
+        return res.status(500).json({
+          ok: false,
+          mensaje: 'REGISTER_SECRET no está configurado.',
+        });
+      }
+
+      if (req.body.registerSecret !== registerSecret) {
+        return res.status(403).json({
+          ok: false,
+          mensaje: 'No tienes permiso para registrar negocios.',
+        });
+      }
+      const registerUseCase = new RegisterUseCase(this.negocioRepo, this.usuarioRepo);
       const resultado = await registerUseCase.execute(req.body);
 
-      res.status(201).json({
+      return res.status(201).json({
         ok: true,
+        mensaje: 'Registro exitoso.',
         data: resultado,
       });
     } catch (error) {
-      res.status(400).json({
+      return res.status(400).json({
         ok: false,
-        message: error instanceof Error ? error.message : 'Error al registrar',
+        message: 'Error al registrar',
       });
     }
   }
 
-  async login(req: Request, res: Response): Promise<void> {
+  async login(req: Request, res: Response) {
     try {
-      const usuarioRepository = new UsuarioRepository();
-      const loginUseCase = new LoginUseCase(usuarioRepository);
-
+      const loginUseCase = new LoginUseCase(this.usuarioRepo);
       const resultado = await loginUseCase.execute(req.body);
 
-      res.status(200).json({
+      return res.status(200).json({
         ok: true,
         data: resultado,
       });
     } catch (error) {
-      res.status(401).json({
+      console.log(error);
+      return res.status(401).json({
         ok: false,
-        message: error instanceof Error ? error.message : 'Error al iniciar sesion',
+        mensaje:error instanceof Error
+          ? error.message
+          : 'Error al iniciar sesion',
       });
     }
+  }
+
+  async crearUsuario(req: Request, res: Response) {
+
+    if (!req.user?.usuarioId) {
+      return res.status(401).json({
+        ok: false,
+        mensaje: "Error, no autenticado."
+      })
+    }
+
+    try {
+      const crearUsuarUseCase = new CrearUsuarioUseCase(this.usuarioRepo);
+
+
+      const data: CrearUsuarioDTO = {
+        negocioId: req.user.negocioId,
+        nombre: req.body.nombre,
+        email: req.body.email,
+        passwordHash: req.body.password,
+        rol: 'staff'
+      };
+
+      const result = await crearUsuarUseCase.execute(req.user.usuarioId, req.user.negocioId, data);
+
+      console.log('Usuario creado exitosamente.');
+      return res.status(201).json({
+        ok: true,
+        mensaje: 'Usuario creado exitosamente',
+        data: result
+      })
+
+    }
+    catch (error) {
+      console.log(`Error al crear el Usuario ${error}`);
+      return res.status(400).json({
+        ok: false,
+        mensaje: error instanceof Error
+          ? error.message
+          : 'Error interno del servidor.'
+      })
+    }
+
   }
 }

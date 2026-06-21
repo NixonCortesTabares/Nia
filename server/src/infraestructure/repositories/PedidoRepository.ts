@@ -1,3 +1,4 @@
+import { ListarPedidosFiltros } from '../../application/pedidos/ListarPedidosUseCase';
 import pool from '../../config/db';
 import {
   ActualizarPedidoDTO,
@@ -113,6 +114,99 @@ const pedidoProductoExtraColumns = `id, pedido_producto_id, extra_id, negocio_id
   cantidad, precio_unitario, subtotal, creado_en`;
 
 export class PedidoRepository implements IPedidoRepository {
+
+  async buscarPorNegocioConFiltros(filtros: ListarPedidosFiltros): Promise<any[]> {
+  try {
+    const condiciones: string[] = ['p.negocio_id = $1'];
+    const values: any[] = [filtros.negocioId];
+
+    let paramIndex = 2;
+
+    if (filtros.estado) {
+      condiciones.push(`p.estado = $${paramIndex}`);
+      values.push(filtros.estado);
+      paramIndex++;
+    }
+
+    if (filtros.rango) {
+      if (filtros.rango === 'hoy') {
+        condiciones.push(`p.creado_en >= CURRENT_DATE`);
+      }
+
+      if (filtros.rango === '7d') {
+        condiciones.push(`p.creado_en >= NOW() - INTERVAL '7 days'`);
+      }
+
+      if (filtros.rango === '30d') {
+        condiciones.push(`p.creado_en >= NOW() - INTERVAL '30 days'`);
+      }
+
+      if (filtros.rango === 'mes') {
+        condiciones.push(`p.creado_en >= date_trunc('month', NOW())`);
+      }
+    }
+
+    if (filtros.desde) {
+      condiciones.push(`p.creado_en >= $${paramIndex}`);
+      values.push(filtros.desde);
+      paramIndex++;
+    }
+
+    if (filtros.hasta) {
+      condiciones.push(`p.creado_en <= $${paramIndex}`);
+      values.push(filtros.hasta);
+      paramIndex++;
+    }
+
+    const limitIndex = paramIndex;
+    values.push(filtros.limit);
+    paramIndex++;
+
+    const offsetIndex = paramIndex;
+    values.push(filtros.offset);
+
+    const result = await pool.query(
+      `
+      SELECT
+        p.id,
+        p.estado,
+        p.tipo_entrega,
+        p.direccion_entrega,
+        p.metodo_pago,
+        p.total,
+        p.creado_en,
+        c.nombre AS cliente_nombre,
+        c.telefono AS cliente_telefono
+      FROM pedidos p
+      LEFT JOIN clientes c
+        ON c.id = p.cliente_id
+       AND c.negocio_id = p.negocio_id
+      WHERE ${condiciones.join(' AND ')}
+      ORDER BY p.creado_en DESC
+      LIMIT $${limitIndex}
+      OFFSET $${offsetIndex}
+      `,
+      values
+    );
+
+    return result.rows.map((row) => ({
+      id: row.id,
+      estado: row.estado,
+      tipoEntrega: row.tipo_entrega,
+      direccionEntrega: row.direccion_entrega,
+      metodoPago: row.metodo_pago,
+      total: Number(row.total),
+      creadoEn: row.creado_en,
+      cliente: {
+        nombre: row.cliente_nombre,
+        telefono: row.cliente_telefono,
+      },
+    }));
+  } catch (error) {
+    console.error('Error DB buscando pedidos con filtros:', error);
+    throw new Error('Error interno del servidor.');
+  }
+}
   async buscarPendientesPorCliente(negocioId: string, telefonoCliente: string): Promise<Pedido | null> {
     const result = await pool.query<PedidoRow>(
       `SELECT ${pedidoColumns}

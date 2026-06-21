@@ -6,6 +6,8 @@ import { NegocioRepository } from "../infraestructure/repositories/NegocioReposi
 import { runAgentTurn } from ".";
 import { enviarMensaje } from "./whatsapp";
 import { PedidoBorrador } from "../domain/entities/Conversacion";
+import { MenuProductoRow, ProductoRepository } from "../infraestructure/repositories/ProductoRepository";
+import { ConstruirMenuUseCase } from "../application/menu/ConstruirMenuUseCase";
 
 const WORKER_INTERVAL_MS = 2000;
 const PENDING_LIMIT = 10;
@@ -14,7 +16,7 @@ const negocioRepo = new NegocioRepository();
 const conversacionRepo = new ConversacionRepository();
 const mensajeRepo = new MensajeRepository();
 const clienteRepo = new ClienteRepository();
-
+const productoRepo = new ProductoRepository();
 let workerStarted = false;
 let workerTickRunning = false;
 
@@ -24,7 +26,7 @@ export function startAgentWorker(): void {
   }
 
   workerStarted = true;
-  console.log("Agent worker iniciado");
+  //console.log("Agent worker iniciado");
 
   setInterval(() => {
     procesarPendientes().catch((error) => {
@@ -134,13 +136,23 @@ async function procesarConversacionPendiente(
 
   const historial = (await mensajeRepo.buscarPorConversacion(conversacion.id)).slice(-4);
 
+  const menuBruto = await productoRepo.buscarMenuActivoPorNegocio(negocio.id);
+
+  if(!menuBruto){
+    throw new Error('El negocio no tiene un menu consstruido para el agente');
+  }
+
+  const menu = ConstruirMenuUseCase(menuBruto);
+  //console.log("MENUUU::::::::");
+  //console.log(menu);
   const respuesta = await runAgentTurn({
     negocio,
     cliente,
     conversacion,
     historial,
     mensajeCliente: ultimoMensajeCliente.contenido,
-    pedidoBorrador
+    pedidoBorrador,
+    menu
   });
 
   if (respuesta) {
@@ -151,7 +163,11 @@ async function procesarConversacionPendiente(
     conversacion.id,
     respuesta.pedidoBorrador
   );
-    const wamidRta = await enviarMensaje(cliente.telefono, respuesta.mensajeCliente);
+
+  if(!negocio.telefonoWs){
+    throw new Error('Este negocio no tiene id del numero del whatsapp')
+  }
+    const wamidRta = await enviarMensaje(cliente.telefono, respuesta.mensajeCliente, negocio.telefonoWs);
 
     await mensajeRepo.crear({
       conversacionId: conversacion.id,
@@ -160,7 +176,7 @@ async function procesarConversacionPendiente(
       wamid: wamidRta,
     });
 
-    console.log("Respuesta enviada por worker");
+    //console.log("Respuesta enviada por worker");
   }
 
   await conversacionRepo.marcarProcesadaHastaMensaje(

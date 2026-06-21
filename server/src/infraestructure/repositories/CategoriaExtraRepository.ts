@@ -104,15 +104,16 @@ export class CategoriaExtraRepository implements ICategoriaExtraRepository {
     return mapCategoriaExtra(result.rows[0]);
   }
 
-  async desactivar(id: string, negocioId: string): Promise<CategoriaExtra | null> {
+  async desactivar(extraId: string, negocioId: string, categoriaId: string): Promise<CategoriaExtra | null> {
     const result = await pool.query<CategoriaExtraRow>(
       `UPDATE categorias_extras
        SET activo = false,
            actualizado_en = NOW()
-       WHERE id = $1
+       WHERE extra_id = $1
          AND negocio_id = $2
+         AND categoria_id = $3
        RETURNING id, negocio_id, categoria_id, extra_id, activo, creado_en, actualizado_en`,
-      [id, negocioId]
+      [extraId, negocioId, categoriaId]
     );
 
     if (!result.rows[0]) {

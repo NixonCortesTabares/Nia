@@ -42,7 +42,7 @@ export function responderMensajePredefinido(mensaje: which): string | null {
     "¡Hola! ¿En qué te puedo ayudar?",
     "¡Buenas! ¿Cómo te puedo ayudar?",
     "Hola, ¿en qué te puedo colaborar?",
-    "Cuéntame, ¿en qué te puedo ayudar?",
+    "Cuéntame, ¿Que deseas pedir hoy?",
   ];
 
   const rtaDespedidas = [

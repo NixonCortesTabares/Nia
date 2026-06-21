@@ -2,6 +2,8 @@ import { INegocioRepository } from '../../domain/repositories/INegocioRepository
 import { IConversacionRepository } from '../../domain/repositories/IConversacionRepository';
 import { IMensajeRepository } from '../../domain/repositories/IMensajeRepository';
 import { IClienteRepository } from '../../domain/repositories/IClienteRepository';
+import { GetMenuUseCase } from '../menu/GetMenuUseCase';
+import { enviarMensaje } from '../../agent/whatsapp';
 
 export interface WhatsappData {
     wamid: string,
@@ -46,6 +48,15 @@ export class ProcesarMensajeEntranteUseCase {
                 clienteId: cliente.id
             });
             conversacionActiva = crearConversacion;
+
+             const menuUseCase = new GetMenuUseCase(this.negocioRepository)
+             if(negocio.telefonoWs){
+                 const menu = await menuUseCase.execute(data.phoneId);
+                
+                if(menu){
+                  await enviarMensaje(data.from, `Bienvenido a ${negocio.nombre}! Aquí nuestro menú: ${menu}`, data.phoneId)
+                }
+             }
         }
 
         const conversacionActualizada = await this.conversacionRepository.actualizar(conversacionActiva.id, {

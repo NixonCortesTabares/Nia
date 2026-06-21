@@ -11,6 +11,14 @@ export class CrearExtraUseCase {
   constructor(private extraRepository: IExtraRepository) {}
 
   async execute(input: CrearExtraUseCaseDTO): Promise<Extra> {
+
+    if(!input.nombre){
+      throw new Error('Debe proporcionar un nombre para el extra.');
+    }
+
+    if(!input.valor){
+      throw new Error('Debe proporcionar un valor para el extra');
+    }
     const nombre = input.nombre.trim();
 
     if (!nombre) {

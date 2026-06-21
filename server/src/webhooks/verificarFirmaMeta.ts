@@ -9,7 +9,7 @@ export function verificarFirmaMeta(
     return false;
   }
 
-  console.log('VERIFICANDO FIRMAAA..... PRI PRI TRAAAA')
+  //console.log('VERIFICANDO FIRMAAA..... PRI PRI TRAAAA')
 
   const expectedSignature =
     'sha256=' +

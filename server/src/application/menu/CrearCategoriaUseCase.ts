@@ -10,6 +10,10 @@ export class CrearCategoriaUseCase {
   constructor(private categoriaRepository: ICategoriaRepository) {}
 
   async execute(input: CrearCategoriaUseCaseDTO): Promise<Categoria> {
+
+    if(!input.nombre){
+      throw new Error('Debe proporcionar un nombre para la categoria');
+    }
     const nombre = input.nombre.trim();
 
     if (!nombre) {

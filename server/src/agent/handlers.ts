@@ -117,7 +117,6 @@ export async function ejecutarHerramienta(nombre: string, input: any,
                 Cliente: ${pedidoGenerado.pedido.nombreCliente}
                 Teléfono: ${pedidoGenerado.pedido.telefonoCliente}
                 Método de pago: ${pedidoGenerado.pedido.metodoPago}
-                Tipo de entrega: ${pedidoGenerado.pedido.tipoEntrega}
                 Dirección: ${pedidoGenerado.pedido.direccionEntrega ?? 'No aplica'}
 
                 Productos:
@@ -197,7 +196,6 @@ export async function ejecutarHerramienta(nombre: string, input: any,
                 Cliente: ${pedidoGenerado.pedido.nombreCliente}
                 Teléfono: ${pedidoGenerado.pedido.telefonoCliente}
                 Método de pago: ${pedidoGenerado.pedido.metodoPago}
-                Tipo de entrega: ${pedidoGenerado.pedido.tipoEntrega}
                 Dirección: ${pedidoGenerado.pedido.direccionEntrega ?? 'No aplica'}
 
                 Productos:

@@ -8,6 +8,8 @@ import { clasificarMensaje } from './MensajesPredefinidos';
 import { responderMensajePredefinido } from './MensajesPredefinidos';
 import { enviarMensaje } from '../agent/whatsapp';
 import { verificarFirmaMeta } from './verificarFirmaMeta';
+import { clienteWhatsappRateLimiter } from '../infraestructure/security/ratelimite';
+import { GetMenuUseCase } from '../application/menu/GetMenuUseCase';
 
 interface WhatsAppTextMessage {
   id: string;
@@ -80,7 +82,7 @@ router.post('/', async (req, res) => {
 
     const value = body.entry?.[0]?.changes?.[0]?.value;
     const message = value?.messages?.[0];
-
+    //console.log(value);
     if (!message || message.type !== 'text') {
       return;
     }
@@ -93,6 +95,25 @@ router.post('/', async (req, res) => {
     const from = message.from;
     const text = message.text.body;
     const phoneId = value.metadata.phone_number_id;
+
+
+    const rateLimit = clienteWhatsappRateLimiter.verificar({
+      phoneNumberId: phoneId,
+      telefonoCliente: from,
+    });
+
+    if (!rateLimit.permitido) {
+      console.warn("Mensaje ignorado por rate limit de cliente:", {
+        phoneId,
+        from,
+        ventana: rateLimit.ventana,
+        contador: rateLimit.contador,
+        max: rateLimit.max,
+        retryAfterMs: rateLimit.retryAfterMs,
+      });
+
+      return;
+    }
 
     const negocioRepo = new NegocioRepository();
     const conversacionRepo = new ConversacionRepository();
@@ -121,11 +142,13 @@ router.post('/', async (req, res) => {
       return;
     }
 
+   
+    
     if (clasificacionMensaje === 'saludo') {
       const respuestaPredefinida = responderMensajePredefinido('saludo');
       if (respuestaPredefinida !== null) {
-        const wamidRta = await enviarMensaje(resultado.cliente.telefono, respuestaPredefinida);
-
+        const wamidRta = await enviarMensaje(resultado.cliente.telefono, respuestaPredefinida, phoneId);
+        
         await mensajeRepo.crear({
           conversacionId: resultado.conversacion.id,
           rol: "agente",
@@ -140,7 +163,7 @@ router.post('/', async (req, res) => {
     if (clasificacionMensaje === 'despedida') {
       const respuestaPredefinida = responderMensajePredefinido('despedida');
       if (respuestaPredefinida !== null) {
-        const wamidRta = await enviarMensaje(resultado.cliente.telefono, respuestaPredefinida);
+        const wamidRta = await enviarMensaje(resultado.cliente.telefono, respuestaPredefinida, phoneId);
 
         await mensajeRepo.crear({
           conversacionId: resultado.conversacion.id,
@@ -154,7 +177,7 @@ router.post('/', async (req, res) => {
     }
     await conversacionRepo.marcarRespuestaPendiente(
       resultado.conversacion.id,
-      4500
+      2500
     );
 
     console.log(

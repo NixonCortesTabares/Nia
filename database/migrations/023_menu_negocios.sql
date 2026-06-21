@@ -1,0 +1,2 @@
+ALTER TABLE negocios
+ADD COLUMN menu_link VARCHAR(255);

@@ -23,6 +23,17 @@ function mapExtra(row: ExtraRow): Extra {
 }
 
 export class ExtraRepository implements IExtraRepository {
+  async buscarPorCategoriaId(categoriaId: string, negocioId: string): Promise<Extra[] | null> {
+    const result = await pool.query<ExtraRow>(
+        `SELECT e.* FROM extras e 
+        INNER JOIN categorias_extras ce
+        ON ce.extra_id = e.id
+        WHERE ce.negocio_id = $1
+        AND  ce.categoria_id = $2;`,[negocioId, categoriaId]
+    );
+
+     return result.rows.map(mapExtra);
+  }
   async crear(data: CrearExtraDTO): Promise<Extra> {
     const result = await pool.query<ExtraRow>(
       `INSERT INTO extras (negocio_id, nombre, valor)

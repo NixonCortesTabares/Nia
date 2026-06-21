@@ -13,13 +13,18 @@ import {
 } from "openai/resources/chat/completions";
 import { Negocio } from "../domain/entities/Negocio";
 import { Cliente } from "../domain/entities/Cliente";
-import { Conversacion, PedidoBorrador } from "../domain/entities/Conversacion";
+import { Conversacion, PedidoBorrador, PedidoBorradorItem } from "../domain/entities/Conversacion";
 import { Mensaje } from "../domain/entities/Mensaje";
 import { tools } from "./tools";
 import { toolsGroq } from "./tools.groq";
 import { toolsGemini } from "./tools.gemini";
 import { buildSystemPrompt } from "./prompt";
 import { ejecutarHerramienta, ToolResultado } from "./handlers";
+import { PrepararPedidoService } from "../application/pedidos/services/PrepararPedidoService";
+import { ProductoRepository } from "../infraestructure/repositories/ProductoRepository";
+import { ExtraRepository } from "../infraestructure/repositories/ExtraRepository";
+import { CategoriaExtraRepository } from "../infraestructure/repositories/CategoriaExtraRepository";
+import { resolverPedidoBorradorUseCase } from "../application/conversaciones/ResolverPedidoBorradorUseCase";
 
 type AgentTurnParams = {
   negocio: Negocio;
@@ -28,6 +33,7 @@ type AgentTurnParams = {
   historial: Mensaje[];
   mensajeCliente: string;
   pedidoBorrador: PedidoBorrador;
+  menu: string
 };
 
 export type AgentTurnResult = {
@@ -124,8 +130,8 @@ export async function runAgentTurnAnthropic(
           "content-type": "application/json",
         },
         body: JSON.stringify({
-          model: "claude-haiku-4-5-20251001",
-          max_tokens: 1024,
+          model: "claude-sonnet-4-6",
+          max_tokens: 2048,
           system: buildSystemPromptConBorrador(
             params.negocio,
             params.pedidoBorrador
@@ -248,6 +254,9 @@ export async function runAgentTurnGroq(
       parallel_tool_calls: false,
       messages,
     });
+
+    console.log("DATOS RESPUESTA GROQ");
+    console.log(response);
 
     const choice = response.choices[0];
 
@@ -428,7 +437,7 @@ export async function runAgentTurnGemini(
       contents,
       config: {
         systemInstruction,
-        maxOutputTokens: 1024,
+        maxOutputTokens: 2048,
         tools: geminiTools,
         toolConfig: {
           functionCallingConfig: {
@@ -437,6 +446,8 @@ export async function runAgentTurnGemini(
         },
       },
     });
+
+    //console.log("Gemini usage: AQUI AQUI", response.usageMetadata);
 
     const functionCalls = response.functionCalls ?? [];
 
@@ -454,7 +465,22 @@ export async function runAgentTurnGemini(
         };
       }
 
-      return parseAgentStructuredResponse(finalText, params.pedidoBorrador);
+
+      const respuestaAgente = parseAgentStructuredResponse(finalText, params.pedidoBorrador);
+
+      const resultadoResolucion = await resolverPedidoBorradorUseCase(respuestaAgente.pedidoBorrador, params.negocio.id);
+
+      if (!resultadoResolucion.ok) {
+        return {
+          mensajeCliente: resultadoResolucion.mensajeCliente,
+          pedidoBorrador: params.pedidoBorrador,
+        };
+      }
+
+      return {
+        mensajeCliente: respuestaAgente.mensajeCliente,
+        pedidoBorrador: resultadoResolucion.pedidoBorrador,
+      };
     }
 
     // Caso 2: si Gemini pide más de una tool, solo ejecutamos la primera
@@ -550,7 +576,7 @@ Responde en el formato JSON estructurado obligatorio:
       contents: contentsSinTools,
       config: {
         systemInstruction,
-        maxOutputTokens: 700,
+        maxOutputTokens: 1500,
         toolConfig: {
           functionCallingConfig: {
             mode: FunctionCallingConfigMode.NONE,

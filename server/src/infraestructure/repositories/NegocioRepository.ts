@@ -27,6 +27,17 @@ function mapNegocio(row: NegocioRow): Negocio {
 }
 
 export class NegocioRepository implements INegocioRepository {
+  async getMenuRestaurante(wamid: string): Promise<string | null> {
+    const result = await pool.query<{menu_link: string}>(
+      `SELECT menu_link FROM negocios WHERE telefono_ws = $1;`, [wamid]
+    )
+
+    if(!result.rows[0]){
+      return null;
+    }
+
+    return result.rows[0].menu_link;
+  }
   async buscarPorTelefonoWs(telefonoWs: string): Promise<Negocio | null> {
     const result = await pool.query<NegocioRow>(
       `SELECT id, nombre, tipo, telefono_ws, ciudad, direccion, activo, creado_en

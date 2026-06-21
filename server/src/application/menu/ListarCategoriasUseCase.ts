@@ -5,6 +5,11 @@ export class ListarCategoriasUseCase {
   constructor(private categoriaRepository: ICategoriaRepository) {}
 
   async execute(negocioId: string): Promise<Categoria[]> {
-    return this.categoriaRepository.buscarPorNegocio(negocioId);
-  }
+    const resultado = await this.categoriaRepository.buscarPorNegocio(negocioId);
+    if(!resultado){
+      throw new Error('No se encontraron categorias para este negocio.');
+    }
+
+    return resultado;
+    }
 }

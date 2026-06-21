@@ -1,3 +1,4 @@
+import { infoCategoria } from '../../application/menu/BuscarInfoExtrasDeCategoriaUseCase';
 import { ActualizarCategoriaDTO, Categoria, CrearCategoriaDTO } from '../entities/Categoria';
 
 export interface ICategoriaRepository {
@@ -8,4 +9,5 @@ export interface ICategoriaRepository {
   buscarPorNombre(negocioId: string, nombre: string): Promise<Categoria | null>;
   actualizar(id: string, negocioId: string, data: ActualizarCategoriaDTO): Promise<Categoria | null>;
   desactivar(id: string, negocioId: string): Promise<Categoria | null>;
+  obtenerInfoExtrasCategoria(id: string, negocioId: string): Promise<infoCategoria>
 }

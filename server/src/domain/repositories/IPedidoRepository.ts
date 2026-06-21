@@ -1,3 +1,4 @@
+import { ListarPedidosFiltros } from '../../application/pedidos/ListarPedidosUseCase';
 import { ActualizarPedidoDTO, CrearPedidoDTO, EstadoPedido, Pedido } from '../entities/Pedido';
 import { CrearPedidoProductoDTO, PedidoProducto } from '../entities/PedidoProducto';
 import {
@@ -38,4 +39,5 @@ export interface IPedidoRepository {
   actualizar(id: string, negocioId: string, data: ActualizarPedidoDTO): Promise<Pedido | null>;
   cambiarEstado(id: string, negocioId: string, estado: EstadoPedido): Promise<Pedido | null>;
   cancelarYCrearCompleto(pedidoAnteriorId: string, data: CrearPedidoCompletoDTO): Promise<PedidoCompleto>;
+  buscarPorNegocioConFiltros(filtros: ListarPedidosFiltros): Promise<any[]>;
 }

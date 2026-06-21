@@ -18,14 +18,20 @@ export class CrearProductoUseCase {
   ) {}
 
   async execute(input: CrearProductoUseCaseDTO): Promise<Producto> {
-    const nombre = input.nombre.trim();
-
-    if (!nombre) {
+    
+    if (!input.nombre) {
       throw new Error('El nombre del producto es obligatorio');
     }
 
-    if (input.valor < 0) {
-      throw new Error('El valor del producto no puede ser negativo');
+    const nombre = input.nombre.trim();
+
+    if (nombre.length < 2) {
+      throw new Error('El nombre del producto es obligatorio');
+    }
+
+
+    if (!input.valor || input.valor <= 0 ) {
+      throw new Error('Debe proporcionar el valor del producto, y este no puede ser negativo o cero');
     }
 
     const categoria = await this.categoriaRepository.buscarPorId(input.categoriaId, input.negocioId);
