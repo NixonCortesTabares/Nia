@@ -31,7 +31,7 @@ export interface CrearPedidoDTO{
     tipoEntrega: TipoEntrega,
     direccionEntrega: string | null,
     metodoPago: metodoPago,
-
+    
     costoDomicilio: number,
     total: number,
     notas: string | null

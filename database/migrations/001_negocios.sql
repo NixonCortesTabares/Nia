@@ -6,5 +6,6 @@ CREATE TABLE negocios (
     ciudad          VARCHAR(50),
     direccion       TEXT,
     activo          BOOLEAN DEFAULT TRUE,
-    creado_en       TIMESTAMP DEFAULT NOW()
+    creado_en       TIMESTAMP DEFAULT NOW(),
+    costo_domicilio INTEGER
 );

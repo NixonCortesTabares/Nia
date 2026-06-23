@@ -61,6 +61,7 @@ export class NegocioController {
         'direccion',
         'ciudad',
         'activo',
+        'costo_domicilio'
       ];
 
       const tieneCampoValido = camposPermitidos.some(
@@ -82,6 +83,7 @@ export class NegocioController {
         nombre: req.body.nombre,
         ciudad: req.body.ciudad,
         direccion: req.body.direccion,
+        costo_domicilio: req.body.costo_domicilio
       });
 
       if (!negocio) {

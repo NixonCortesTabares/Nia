@@ -1,5 +1,7 @@
 //import { metodoPago, TipoEntrega } from "../../domain/entities/Pedido";
-import {IPedidoRepository } from "../../domain/repositories/IPedidoRepository";
+import { enviarMensaje } from "../../agent/whatsapp";
+import { INegocioRepository } from "../../domain/repositories/INegocioRepository";
+import { IPedidoRepository } from "../../domain/repositories/IPedidoRepository";
 import { GenerarPedidoResumen, GenerarPedidoUseCaseDTO } from "./GenerarPedidoUseCase";
 import { PrepararPedidoService } from "./services/PrepararPedidoService";
 
@@ -10,12 +12,12 @@ import { PrepararPedidoService } from "./services/PrepararPedidoService";
 export class ModificarOCancelarPedidoUseCase {
     constructor(
         private pedidoRepository: IPedidoRepository,
-        private prepararPedidoService: PrepararPedidoService
+        private prepararPedidoService: PrepararPedidoService,
+        private negocioRepo: INegocioRepository
     ) { }
 
 
-    async executeModificacion(input: GenerarPedidoUseCaseDTO): Promise<GenerarPedidoResumen> 
-    {
+    async executeModificacion(input: GenerarPedidoUseCaseDTO): Promise<GenerarPedidoResumen | null> {
 
         try {
 
@@ -25,40 +27,41 @@ export class ModificarOCancelarPedidoUseCase {
                     input.conversacionId
                 );
 
-            if (!pedidoAModificarOCancelar) {
-                throw new Error(`El cliente no tiene pedidos cancelables ni modificables. Si creaste un pedido recientemente para el explicale que ya esta en ruta, 
-                    y no es posible cancelarlo ni modificarlo.
-                    Si insiste, escala la conversacion.`);
+            const negocio = await this.negocioRepo.buscarPorId(input.negocioId);
+
+            if (!negocio?.telefonoWs) {
+                throw new Error('No se pudo encontrar el negocio o no tiene un id de whatsapp configurado.');
             }
-                    console.log('Entro a modificar');
 
-                    const pedidoPreparado = await this.prepararPedidoService.execute(input);
-                    
-                    const pedidoCompleto = await this.pedidoRepository.cancelarYCrearCompleto(pedidoAModificarOCancelar.id, pedidoPreparado);
+            if (!pedidoAModificarOCancelar) {
+                throw new Error('No tiene pedidos.');
+            }
+            const now = new Date();
+            const hechoEn = pedidoAModificarOCancelar.creadoEn;
+            const diferencia = now.getTime() - hechoEn.getTime();
 
-                return {
-                    pedido: pedidoCompleto.pedido,
-                    productos: pedidoCompleto.productos,
-                    total: pedidoCompleto.pedido.total,
-                };
-
-            
+            if (diferencia >= 240000) {
+                return null;
+            }
+            const pedidoPreparado = await this.prepararPedidoService.execute(input);
+            const pedidoCompleto = await this.pedidoRepository.cancelarYCrearCompleto(pedidoAModificarOCancelar.id, pedidoPreparado);
+            return {
+                pedido: pedidoCompleto.pedido,
+                productos: pedidoCompleto.productos,
+                total: pedidoCompleto.pedido.total,
+            };
         }
         catch (error) {
-            console.log('Error al intentar modificar o cancelar el pedido.')
-            console.log(error)
-
             if (error instanceof Error) {
                 throw error;
             }
-
             throw new Error("Error al intentar modificar o cancelar el pedido.");
         }
     }
 
-    async executeCancelacion(negocioId: string, conversacionId: string): Promise<string>{
+    async executeCancelacion(negocioId: string, conversacionId: string): Promise<string | null> {
 
-        try{
+        try {
 
             const pedidoAModificarOCancelar =
                 await this.pedidoRepository.buscarUltimoModificablePorConversacion(
@@ -67,23 +70,30 @@ export class ModificarOCancelarPedidoUseCase {
                 );
 
             if (!pedidoAModificarOCancelar) {
-                throw new Error(`El cliente no tiene pedidos cancelables ni modificables. Si creaste un pedido recientemente para el explicale que ya esta en ruta, 
-                    y no es posible cancelarlo ni modificarlo.
+                throw new Error(`El cliente no tiene pedidos cancelables ni modificables. Si creaste un pedido recientemente 
+                    para el explicale que ya esta en ruta, y no es posible cancelarlo ni modificarlo.
                     Si insiste, escala la conversacion.`);
             }
 
-                console.log('entro a cancelar');
-                const pedidoACancelar = await this.pedidoRepository.cambiarEstado(pedidoAModificarOCancelar.id, negocioId, 'cancelado');
-                if(!pedidoACancelar){
-                    throw new Error('No se pudo cancelar el pedido encontrado.');
-                }
+            const now = new Date();
+            const hechoEn = pedidoAModificarOCancelar.creadoEn;
+            const diferencia = now.getTime() - hechoEn.getTime();
 
-                return "El pedido fue cancelado correctamente"
+            if (diferencia >= 200000) {
+                return null
+            }
+
+            const pedidoACancelar = await this.pedidoRepository.cambiarEstado(pedidoAModificarOCancelar.id, negocioId, 'cancelado');
+            if (!pedidoACancelar) {
+                throw new Error('No se pudo cancelar el pedido encontrado.');
+            }
+
+            return "El pedido fue cancelado correctamente"
         }
-        catch(error){
+        catch (error) {
             console.log('Error al intentar cancelar el pedido', error);
             throw new Error('Error al intentar cancelar el pedido');
         }
 
     }
-    }
+}

@@ -1,6 +1,7 @@
 import { metodoPago, TipoEntrega } from "../../../domain/entities/Pedido";
 import { ICategoriaExtraRepository } from "../../../domain/repositories/ICategoriaExtraRepository";
 import { IExtraRepository } from "../../../domain/repositories/IExtraRepository";
+import { INegocioRepository } from "../../../domain/repositories/INegocioRepository";
 import { CrearPedidoCompletoDTO, CrearPedidoProductoCompletoDTO } from "../../../domain/repositories/IPedidoRepository";
 import { IProductoRepository } from "../../../domain/repositories/IProductoRepository";
 import { GenerarPedidoUseCaseDTO, normalizarTexto } from "../GenerarPedidoUseCase";
@@ -13,7 +14,8 @@ export class PrepararPedidoService {
   constructor(
     private productoRepository: IProductoRepository,
     private extraRepository: IExtraRepository,
-    private categoriaExtraRepository: ICategoriaExtraRepository
+    private categoriaExtraRepository: ICategoriaExtraRepository,
+    private negocioRepo: INegocioRepository
   ) { }
 
 
@@ -64,7 +66,17 @@ export class PrepararPedidoService {
       throw new Error('La direccion de entrega es obligatoria para domicilio');
     }
 
-    const costoDomicilio = 0;
+
+    const negocio = await this.negocioRepo.buscarPorId(input.negocioId);
+    if(!negocio){
+      throw new Error('No se pudo encontrar el negocio al intentar preparar el pedido');
+    }
+    let costoDomicilio= 0;
+    
+    if(tipoEntregaNormalizado === 'domicilio'){
+      costoDomicilio = negocio?.costo_domicilio;
+    }
+    
     const productos: CrearPedidoProductoCompletoDTO[] = [];
 
     for (const item of input.items) {

@@ -7,6 +7,8 @@ export interface Negocio {
   direccion?: string;
   activo: boolean;
   creadoEn: Date;
+  menu_link:string;
+  costo_domicilio: number;
 }
 
 export interface CrearNegocioDTO {
@@ -22,4 +24,5 @@ export interface EditarNegocioDTO {
   telefonoWs?: string;
   ciudad?: string;
   direccion?: string;
+  costo_domicilio?:string
 }

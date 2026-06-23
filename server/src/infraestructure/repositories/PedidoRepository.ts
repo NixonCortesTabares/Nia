@@ -116,97 +116,203 @@ const pedidoProductoExtraColumns = `id, pedido_producto_id, extra_id, negocio_id
 export class PedidoRepository implements IPedidoRepository {
 
   async buscarPorNegocioConFiltros(filtros: ListarPedidosFiltros): Promise<any[]> {
-  try {
-    const condiciones: string[] = ['p.negocio_id = $1'];
-    const values: any[] = [filtros.negocioId];
+    try {
+      const condiciones: string[] = ['p.negocio_id = $1'];
+      const values: any[] = [filtros.negocioId];
 
-    let paramIndex = 2;
+      let paramIndex = 2;
 
-    if (filtros.estado) {
-      condiciones.push(`p.estado = $${paramIndex}`);
-      values.push(filtros.estado);
+      if (filtros.estado) {
+        condiciones.push(`p.estado = $${paramIndex}`);
+        values.push(filtros.estado);
+        paramIndex++;
+      }
+
+      if (filtros.rango) {
+        if (filtros.rango === 'hoy') {
+          condiciones.push(`p.creado_en >= CURRENT_DATE`);
+        }
+
+        if (filtros.rango === '7d') {
+          condiciones.push(`p.creado_en >= NOW() - INTERVAL '7 days'`);
+        }
+
+        if (filtros.rango === '30d') {
+          condiciones.push(`p.creado_en >= NOW() - INTERVAL '30 days'`);
+        }
+
+        if (filtros.rango === 'mes') {
+          condiciones.push(`p.creado_en >= date_trunc('month', NOW())`);
+        }
+      }
+
+      if (filtros.desde) {
+        condiciones.push(`p.creado_en >= $${paramIndex}`);
+        values.push(filtros.desde);
+        paramIndex++;
+      }
+
+      if (filtros.hasta) {
+        condiciones.push(`p.creado_en <= $${paramIndex}`);
+        values.push(filtros.hasta);
+        paramIndex++;
+      }
+
+      const limitIndex = paramIndex;
+      values.push(filtros.limit);
       paramIndex++;
-    }
 
-    if (filtros.rango) {
-      if (filtros.rango === 'hoy') {
-        condiciones.push(`p.creado_en >= CURRENT_DATE`);
-      }
+      const offsetIndex = paramIndex;
+      values.push(filtros.offset);
 
-      if (filtros.rango === '7d') {
-        condiciones.push(`p.creado_en >= NOW() - INTERVAL '7 days'`);
-      }
+      const result = await pool.query(
+        `
+      WITH pedidos_filtrados AS (
+        SELECT
+          p.id,
+          p.negocio_id,
+          p.estado,
+          p.tipo_entrega,
+          p.direccion_entrega,
+          p.metodo_pago,
+          p.total,
+          p.costo_domicilio,
+          p.creado_en,
+          p.nombre_cliente AS cliente_nombre,
+          p.telefono_cliente AS cliente_telefono
+        FROM pedidos p
+        WHERE ${condiciones.join(' AND ')}
+        ORDER BY p.creado_en DESC
+        LIMIT $${limitIndex}
+        OFFSET $${offsetIndex}
+      ),
 
-      if (filtros.rango === '30d') {
-        condiciones.push(`p.creado_en >= NOW() - INTERVAL '30 days'`);
-      }
+      productos_con_extras AS (
+        SELECT
+          pp.id AS pedido_producto_id,
+          pp.pedidos_id,
+          pp.nombre_producto,
+          pp.precio_unitario,
+          pp.cantidad,
+          pp.subtotal,
+          pp.notas,
 
-      if (filtros.rango === 'mes') {
-        condiciones.push(`p.creado_en >= date_trunc('month', NOW())`);
-      }
-    }
+          COALESCE(
+            jsonb_agg(
+              jsonb_build_object(
+                'nombreExtra', ppe.nombre_extra,
+                'cantidad', ppe.cantidad,
+                'precioUnitario', ppe.precio_unitario,
+                'subtotal', ppe.subtotal
+              )
+              ORDER BY ppe.nombre_extra ASC
+            ) FILTER (WHERE ppe.id IS NOT NULL),
+            '[]'::jsonb
+          ) AS extras
 
-    if (filtros.desde) {
-      condiciones.push(`p.creado_en >= $${paramIndex}`);
-      values.push(filtros.desde);
-      paramIndex++;
-    }
+        FROM pedidos_productos pp
 
-    if (filtros.hasta) {
-      condiciones.push(`p.creado_en <= $${paramIndex}`);
-      values.push(filtros.hasta);
-      paramIndex++;
-    }
+        LEFT JOIN pedidos_productos_extras ppe
+          ON ppe.pedido_producto_id = pp.id
+         AND ppe.negocio_id = pp.negocio_id
 
-    const limitIndex = paramIndex;
-    values.push(filtros.limit);
-    paramIndex++;
+        WHERE pp.pedidos_id IN (
+          SELECT id FROM pedidos_filtrados
+        )
 
-    const offsetIndex = paramIndex;
-    values.push(filtros.offset);
+        GROUP BY
+          pp.id,
+          pp.pedidos_id,
+          pp.nombre_producto,
+          pp.precio_unitario,
+          pp.cantidad,
+          pp.subtotal,
+          pp.notas
+      )
 
-    const result = await pool.query(
-      `
       SELECT
-        p.id,
-        p.estado,
-        p.tipo_entrega,
-        p.direccion_entrega,
-        p.metodo_pago,
-        p.total,
-        p.creado_en,
-        c.nombre AS cliente_nombre,
-        c.telefono AS cliente_telefono
-      FROM pedidos p
-      LEFT JOIN clientes c
-        ON c.id = p.cliente_id
-       AND c.negocio_id = p.negocio_id
-      WHERE ${condiciones.join(' AND ')}
-      ORDER BY p.creado_en DESC
-      LIMIT $${limitIndex}
-      OFFSET $${offsetIndex}
-      `,
-      values
-    );
+        pf.id,
+        pf.estado,
+        pf.tipo_entrega,
+        pf.direccion_entrega,
+        pf.metodo_pago,
+        pf.total,
+        pf.costo_domicilio,
+        pf.creado_en,
+        pf.cliente_nombre,
+        pf.cliente_telefono,
 
-    return result.rows.map((row) => ({
-      id: row.id,
-      estado: row.estado,
-      tipoEntrega: row.tipo_entrega,
-      direccionEntrega: row.direccion_entrega,
-      metodoPago: row.metodo_pago,
-      total: Number(row.total),
-      creadoEn: row.creado_en,
-      cliente: {
-        nombre: row.cliente_nombre,
-        telefono: row.cliente_telefono,
-      },
-    }));
-  } catch (error) {
-    console.error('Error DB buscando pedidos con filtros:', error);
-    throw new Error('Error interno del servidor.');
+        COALESCE(
+          jsonb_agg(
+            jsonb_build_object(
+              'nombreProducto', pce.nombre_producto,
+              'precioUnitario', pce.precio_unitario,
+              'cantidad', pce.cantidad,
+              'subtotal', pce.subtotal,
+              'notas', pce.notas,
+              'extras', pce.extras
+            )
+            ORDER BY pce.nombre_producto ASC
+          ) FILTER (WHERE pce.pedido_producto_id IS NOT NULL),
+          '[]'::jsonb
+        ) AS productos
+
+      FROM pedidos_filtrados pf
+
+      LEFT JOIN productos_con_extras pce
+        ON pce.pedidos_id = pf.id
+
+      GROUP BY
+        pf.id,
+        pf.estado,
+        pf.tipo_entrega,
+        pf.direccion_entrega,
+        pf.metodo_pago,
+        pf.total,
+        pf.costo_domicilio,
+        pf.creado_en,
+        pf.cliente_nombre,
+        pf.cliente_telefono
+
+      ORDER BY pf.creado_en DESC
+      `,
+        values
+      );
+
+      return result.rows.map((row) => ({
+        id: row.id,
+        estado: row.estado,
+        tipoEntrega: row.tipo_entrega,
+        direccionEntrega: row.direccion_entrega,
+        metodoPago: row.metodo_pago,
+        total: Number(row.total),
+        costoDomicilio: Number(row.costo_domicilio ?? 0),
+        creadoEn: row.creado_en,
+        cliente: {
+          nombre: row.cliente_nombre,
+          telefono: row.cliente_telefono,
+        },
+        productos: row.productos.map((producto: any) => ({
+          nombreProducto: producto.nombreProducto,
+          precioUnitario: Number(producto.precioUnitario),
+          cantidad: Number(producto.cantidad),
+          subtotal: Number(producto.subtotal),
+          notas: producto.notas,
+          extras: Array.isArray(producto.extras)
+            ? producto.extras.map((extra: any) => ({
+              nombreExtra: extra.nombreExtra,
+              cantidad: Number(extra.cantidad),
+              precioUnitario: Number(extra.precioUnitario),
+              subtotal: Number(extra.subtotal),
+            }))
+            : [],
+        })),
+      }));
+    } catch (error) {
+      console.error('Error DB buscando pedidos con filtros:', error);
+      throw new Error('Error interno del servidor.');
+    }
   }
-}
   async buscarPendientesPorCliente(negocioId: string, telefonoCliente: string): Promise<Pedido | null> {
     const result = await pool.query<PedidoRow>(
       `SELECT ${pedidoColumns}
@@ -235,7 +341,7 @@ export class PedidoRepository implements IPedidoRepository {
        FROM pedidos
        WHERE negocio_id = $1
          AND conversacion_id = $2
-         AND estado IN ('pendiente', 'confirmado')
+         AND estado IN ('pendiente', 'en_cocina', 'en_ruta')
        ORDER BY creado_en DESC
        LIMIT 1`,
       [negocioId, conversacionId]
@@ -247,7 +353,7 @@ export class PedidoRepository implements IPedidoRepository {
 
     return mapPedido(result.rows[0]);
   }
-  
+
   async crear(data: CrearPedidoDTO): Promise<Pedido> {
     const result = await pool.query<PedidoRow>(
       `INSERT INTO pedidos (
@@ -483,32 +589,32 @@ export class PedidoRepository implements IPedidoRepository {
   }
 
   async cancelarYCrearCompleto(
-  pedidoAnteriorId: string,
-  data: CrearPedidoCompletoDTO
-): Promise<PedidoCompleto> {
-  const client = await pool.connect();
+    pedidoAnteriorId: string,
+    data: CrearPedidoCompletoDTO
+  ): Promise<PedidoCompleto> {
+    const client = await pool.connect();
 
-  try {
-    await client.query('BEGIN');
+    try {
+      await client.query('BEGIN');
 
-    const cancelarResult = await client.query<PedidoRow>(
-      `UPDATE pedidos
+      const cancelarResult = await client.query<PedidoRow>(
+        `UPDATE pedidos
        SET estado = 'cancelado'
        WHERE id = $1
          AND negocio_id = $2
          AND estado IN ('pendiente', 'confirmado')
        RETURNING ${pedidoColumns}`,
-      [pedidoAnteriorId, data.pedido.negocioId]
-    );
-
-    if (cancelarResult.rows.length === 0) {
-      throw new Error(
-        'Pedido no encontrado o no se puede modificar porque ya está en proceso.'
+        [pedidoAnteriorId, data.pedido.negocioId]
       );
-    }
 
-    const pedidoResult = await client.query<PedidoRow>(
-      `INSERT INTO pedidos (
+      if (cancelarResult.rows.length === 0) {
+        throw new Error(
+          'Pedido no encontrado o no se puede modificar porque ya está en proceso.'
+        );
+      }
+
+      const pedidoResult = await client.query<PedidoRow>(
+        `INSERT INTO pedidos (
          negocio_id,
          cliente_id,
          conversacion_id,
@@ -524,27 +630,27 @@ export class PedidoRepository implements IPedidoRepository {
        )
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'pendiente')
        RETURNING ${pedidoColumns}`,
-      [
-        data.pedido.negocioId,
-        data.pedido.clienteId,
-        data.pedido.conversacionId,
-        data.pedido.nombreCliente,
-        data.pedido.telefonoCliente,
-        data.pedido.tipoEntrega,
-        data.pedido.direccionEntrega,
-        data.pedido.metodoPago,
-        data.pedido.costoDomicilio,
-        data.pedido.total,
-        data.pedido.notas,
-      ]
-    );
+        [
+          data.pedido.negocioId,
+          data.pedido.clienteId,
+          data.pedido.conversacionId,
+          data.pedido.nombreCliente,
+          data.pedido.telefonoCliente,
+          data.pedido.tipoEntrega,
+          data.pedido.direccionEntrega,
+          data.pedido.metodoPago,
+          data.pedido.costoDomicilio,
+          data.pedido.total,
+          data.pedido.notas,
+        ]
+      );
 
-    const pedido = mapPedido(pedidoResult.rows[0]);
-    const productos: PedidoCompleto['productos'] = [];
+      const pedido = mapPedido(pedidoResult.rows[0]);
+      const productos: PedidoCompleto['productos'] = [];
 
-    for (const item of data.productos) {
-      const productoResult = await client.query<PedidoProductoRow>(
-        `INSERT INTO pedidos_productos (
+      for (const item of data.productos) {
+        const productoResult = await client.query<PedidoProductoRow>(
+          `INSERT INTO pedidos_productos (
            negocio_id,
            pedidos_id,
            productos_id,
@@ -556,24 +662,24 @@ export class PedidoRepository implements IPedidoRepository {
          )
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING ${pedidoProductoColumns}`,
-        [
-          pedido.negocioId,
-          pedido.id,
-          item.productoId,
-          item.nombreProducto,
-          item.cantidad,
-          item.precioUnitario,
-          item.subtotal,
-          item.notas ?? null,
-        ]
-      );
+          [
+            pedido.negocioId,
+            pedido.id,
+            item.productoId,
+            item.nombreProducto,
+            item.cantidad,
+            item.precioUnitario,
+            item.subtotal,
+            item.notas ?? null,
+          ]
+        );
 
-      const producto = mapPedidoProducto(productoResult.rows[0]);
-      const extras: PedidoProductoExtra[] = [];
+        const producto = mapPedidoProducto(productoResult.rows[0]);
+        const extras: PedidoProductoExtra[] = [];
 
-      for (const extra of item.extras) {
-        const extraResult = await client.query<PedidoProductoExtraRow>(
-          `INSERT INTO pedidos_productos_extras (
+        for (const extra of item.extras) {
+          const extraResult = await client.query<PedidoProductoExtraRow>(
+            `INSERT INTO pedidos_productos_extras (
              pedido_producto_id,
              extra_id,
              negocio_id,
@@ -584,31 +690,31 @@ export class PedidoRepository implements IPedidoRepository {
            )
            VALUES ($1, $2, $3, $4, $5, $6, $7)
            RETURNING ${pedidoProductoExtraColumns}`,
-          [
-            producto.id,
-            extra.extraId,
-            pedido.negocioId,
-            extra.nombreExtra,
-            extra.cantidad,
-            extra.precioUnitario,
-            extra.subtotal,
-          ]
-        );
+            [
+              producto.id,
+              extra.extraId,
+              pedido.negocioId,
+              extra.nombreExtra,
+              extra.cantidad,
+              extra.precioUnitario,
+              extra.subtotal,
+            ]
+          );
 
-        extras.push(mapPedidoProductoExtra(extraResult.rows[0]));
+          extras.push(mapPedidoProductoExtra(extraResult.rows[0]));
+        }
+
+        productos.push({ producto, extras });
       }
 
-      productos.push({ producto, extras });
+      await client.query('COMMIT');
+
+      return { pedido, productos };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
     }
-
-    await client.query('COMMIT');
-
-    return { pedido, productos };
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
-  } finally {
-    client.release();
   }
-}
 }

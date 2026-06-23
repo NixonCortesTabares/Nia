@@ -11,6 +11,8 @@ interface NegocioRow {
   direccion: string | null;
   activo: boolean;
   creado_en: Date;
+  menu_link:string;
+  costo_domicilio: number;
 }
 
 function mapNegocio(row: NegocioRow): Negocio {
@@ -23,6 +25,8 @@ function mapNegocio(row: NegocioRow): Negocio {
     direccion: row.direccion ?? undefined,
     activo: row.activo,
     creadoEn: row.creado_en,
+    menu_link: row.menu_link,
+    costo_domicilio: row.costo_domicilio
   };
 }
 
@@ -69,7 +73,7 @@ export class NegocioRepository implements INegocioRepository {
 
   async buscarPorId(id: string): Promise<Negocio | null> {
     const result = await pool.query<NegocioRow>(
-      `SELECT id, nombre, tipo, telefono_ws, ciudad, direccion, activo, creado_en
+      `SELECT id, nombre, tipo, telefono_ws, ciudad, direccion, activo, creado_en, menu_link, costo_domicilio
        FROM negocios
        WHERE id = $1`,
       [id]
@@ -89,9 +93,10 @@ export class NegocioRepository implements INegocioRepository {
            tipo = COALESCE($3, tipo),
            telefono_ws = COALESCE($4, telefono_ws),
            ciudad = COALESCE($5, ciudad),
-           direccion = COALESCE($6, direccion)
+           direccion = COALESCE($6, direccion),
+           costo_domicilio = COALESCE($7, costo_domicilio)
        WHERE id = $1
-       RETURNING id, nombre, tipo, telefono_ws, ciudad, direccion, activo, creado_en`,
+       RETURNING id, nombre, tipo, telefono_ws, ciudad, direccion, activo, creado_en, menu_link, costo_domicilio`,
       [
         id,
         data.nombre ?? null,
@@ -99,6 +104,7 @@ export class NegocioRepository implements INegocioRepository {
         data.telefonoWs ?? null,
         data.ciudad ?? null,
         data.direccion ?? null,
+        data.costo_domicilio ?? null
       ]
     );
 

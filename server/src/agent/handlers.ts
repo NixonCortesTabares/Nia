@@ -47,9 +47,10 @@ export async function ejecutarHerramienta(nombre: string, input: any,
             const actualizarConver = await conversacionRepo.actualizar(conversacionId, { estado: 'escalada' });
             if (!actualizarConver) {
                 return {
-                    ok: false, mensaje: 'No se pudo actualizar la conversacion'};
+                    ok: false, mensaje: 'No se pudo actualizar la conversacion'
+                };
             }
-            return {ok: false, mensaje: 'Conversacion escalada exitosamente. Un humano atenderá al cliente pronto.'};
+            return { ok: false, mensaje: 'Conversacion escalada exitosamente. Un humano atenderá al cliente pronto.' };
         }
 
         if (nombre === 'generar_pedido') {
@@ -61,19 +62,19 @@ export async function ejecutarHerramienta(nombre: string, input: any,
             ]);
 
             if (errorValidacion) {
-                return {ok: false, mensaje: errorValidacion};
+                return { ok: false, mensaje: errorValidacion };
             }
 
             if (!arregloValido(input.items)) {
-                return {ok:false, mensaje: 'Faltan productos para generar el pedido.'};
+                return { ok: false, mensaje: 'Faltan productos para generar el pedido.' };
             }
 
             const pedidoRepo = new PedidoRepository();
             const productoRepo = new ProductoRepository();
             const extraRepo = new ExtraRepository();
             const categoriaExtraRepo = new CategoriaExtraRepository();
-
-            const pedidoService = new PrepararPedidoService(productoRepo, extraRepo, categoriaExtraRepo);
+            const negocioRepo = new NegocioRepository();
+            const pedidoService = new PrepararPedidoService(productoRepo, extraRepo, categoriaExtraRepo, negocioRepo);
             const generarPedidoUseCase = new GenerarPedidoUseCase(
                 pedidoRepo,
                 pedidoService
@@ -112,30 +113,59 @@ export async function ejecutarHerramienta(nombre: string, input: any,
                 })
                 .join('\n');
 
-            return {ok: true, mensaje: `Pedido generado exitosamente.
 
-                Cliente: ${pedidoGenerado.pedido.nombreCliente}
-                Teléfono: ${pedidoGenerado.pedido.telefonoCliente}
-                Método de pago: ${pedidoGenerado.pedido.metodoPago}
-                Dirección: ${pedidoGenerado.pedido.direccionEntrega ?? 'No aplica'}
 
-                Productos:
-                ${resumenItems}
+            if (pedidoGenerado.pedido.metodoPago === 'transferencia') {
+                return {
+                    ok: true, mensaje:
+`Ya tenemos tu pedido.
 
-                Total: $${pedidoGenerado.total}`};
+Cliente: ${pedidoGenerado.pedido.nombreCliente}
+Teléfono: ${pedidoGenerado.pedido.telefonoCliente}
+Método de pago: ${pedidoGenerado.pedido.metodoPago}
+Dirección: ${pedidoGenerado.pedido.direccionEntrega ?? 'No aplica'}
+
+Productos:
+    ${resumenItems}
+El domicilio tiene un valor de $${pedidoGenerado.pedido.costoDomicilio}
+Total: $${pedidoGenerado.total}
+                
+*No olvides mandar pantallazo de la transferencia para poder empezar a realizar el pedido*
+*Por temas de organización y sistema, tienes 3 minutos en caso de que quieras modificar tu pedido.*`
+                };
+            }
+            else {
+
+                return {
+                    ok: true, mensaje: `
+Ya tenemos tu pedido.
+
+Cliente: ${pedidoGenerado.pedido.nombreCliente}
+Teléfono: ${pedidoGenerado.pedido.telefonoCliente}
+Método de pago: ${pedidoGenerado.pedido.metodoPago}
+Dirección: ${pedidoGenerado.pedido.direccionEntrega ?? 'No aplica'}
+
+Productos:
+  ${resumenItems}
+El domicilio tiene un valor de $${pedidoGenerado.pedido.costoDomicilio}
+Total: $${pedidoGenerado.total}.
+Por temas de organización y sistema, tienes 3 minutos en caso de que quieras modificar tu pedido.`
+                };
+            }
         }
-
         if (nombre === 'modificar_o_cancelar_pedido') {
 
             const pedidoRepo = new PedidoRepository();
             const productoRepo = new ProductoRepository();
             const extraRepo = new ExtraRepository();
             const categoriaExtraRepo = new CategoriaExtraRepository();
-            const pedidoService = new PrepararPedidoService(productoRepo, extraRepo, categoriaExtraRepo);
+            const negocioRepo = new NegocioRepository();
+            const pedidoService = new PrepararPedidoService(productoRepo, extraRepo, categoriaExtraRepo, negocioRepo);
             const modificarOCancelarPedidoUseCase = new ModificarOCancelarPedidoUseCase(
-                    pedidoRepo,
-                    pedidoService
-                );
+                pedidoRepo,
+                pedidoService,
+                negocioRepo
+            );
 
             if (input.tipo_cambio === 'modificacion') {
 
@@ -147,11 +177,11 @@ export async function ejecutarHerramienta(nombre: string, input: any,
                 ]);
 
                 if (errorValidacion) {
-                    return {ok:false, mensaje: errorValidacion};
+                    return { ok: false, mensaje: errorValidacion };
                 }
 
                 if (!arregloValido(input.items)) {
-                    return {ok: false, mensaje: 'Faltan productos para generar el pedido.'};
+                    return { ok: false, mensaje: 'Faltan productos para generar el pedido.' };
                 }
 
                 const pedidoGenerado = await modificarOCancelarPedidoUseCase.executeModificacion({
@@ -172,8 +202,8 @@ export async function ejecutarHerramienta(nombre: string, input: any,
                     notas: input.notas ?? null,
                 });
 
-                if (typeof pedidoGenerado === 'string') {
-                    return {ok:false, mensaje: "Error al modificar el pedido."}
+                if (!pedidoGenerado) {
+                    return { ok: false, mensaje: "No podemos modificar tu pedido. explicale al cliente que ya va en camino." }
                 }
 
                 const resumenItems = pedidoGenerado.productos
@@ -191,45 +221,69 @@ export async function ejecutarHerramienta(nombre: string, input: any,
                     })
                     .join('\n');
 
-                return {ok: true, mensaje: `Pedido modficado exitosamente.
+                if (pedidoGenerado.pedido.metodoPago === 'transferencia') {
+                    return {
+                        ok: true, mensaje: `
+Pedido modificado exitosamente.
 
-                Cliente: ${pedidoGenerado.pedido.nombreCliente}
-                Teléfono: ${pedidoGenerado.pedido.telefonoCliente}
-                Método de pago: ${pedidoGenerado.pedido.metodoPago}
-                Dirección: ${pedidoGenerado.pedido.direccionEntrega ?? 'No aplica'}
+Cliente: ${pedidoGenerado.pedido.nombreCliente}
+Teléfono: ${pedidoGenerado.pedido.telefonoCliente}
+Método de pago: ${pedidoGenerado.pedido.metodoPago}
+Dirección: ${pedidoGenerado.pedido.direccionEntrega ?? 'No aplica'}
 
-                Productos:
-                ${resumenItems}
+Productos:
+  ${resumenItems}
+El domicilio tiene un valor de $${pedidoGenerado.pedido.costoDomicilio}
+Total: $${pedidoGenerado.total}
+*Recuerda enviar el comprobante de la transacción para poder pasar el pedido a cocina.*
+`
+                    };
+                }
+                return {
+                    ok: true, mensaje: `
+Pedido modificado exitosamente.
 
-                Total: $${pedidoGenerado.total}`};
+Cliente: ${pedidoGenerado.pedido.nombreCliente}
+Teléfono: ${pedidoGenerado.pedido.telefonoCliente}
+Método de pago: ${pedidoGenerado.pedido.metodoPago}
+Dirección: ${pedidoGenerado.pedido.direccionEntrega ?? 'No aplica'}
+
+Productos:
+ ${resumenItems}
+El domicilio tiene un valor de $${pedidoGenerado.pedido.costoDomicilio}
+Total: $${pedidoGenerado.total}`
+                };
 
 
             }
             if (input.tipo_cambio === 'cancelacion') {
                 const pedidoCancelado = await modificarOCancelarPedidoUseCase.executeCancelacion(negocioId, conversacionId);
-                return {ok: true, mensaje: pedidoCancelado};    
+                if (pedidoCancelado === null) {
+                    return { ok: false, mensaje: "Explicale al cliente que no podemos cancelar el pedido porque ya va en camino. Si insiste escala la conversacion" }
+                }
+                return { ok: true, mensaje: pedidoCancelado };
             }
 
-            else{
-                return {ok:false, mensaje: "Error al modificar o cancelar el pedido, el tipo_cambio no es ni modificacion ni cancelacion"}
+            else {
+                return { ok: false, mensaje: "Error al modificar o cancelar el pedido, el tipo_cambio no es ni modificacion ni cancelacion" }
             }
 
         }
 
-        return {ok:false, mensaje: "No se encontró una herramienta con ese nombre."}
+        return { ok: false, mensaje: "No se encontró una herramienta con ese nombre." }
     }
     catch (error) {
         console.error('Error en herramienta', nombre, error);
 
         if ((error as { code?: string }).code === '23505') {
-            return {ok:false, mensaje: 'No se pudo completar la operación porque ya existe un registro similar. Revisa los datos e intenta de nuevo.'};
+            return { ok: false, mensaje: 'No se pudo completar la operación porque ya existe un registro similar. Revisa los datos e intenta de nuevo.' };
         }
 
         if (error instanceof Error) {
-            return {ok:false, mensaje: error.message};
+            return { ok: false, mensaje: error.message };
         }
 
-        return {ok:false, mensaje:'Hubo un error ejecutando la herramienta solicitada. Intenta de nuevo o pide ayuda a una persona del negocio.'};
+        return { ok: false, mensaje: 'Hubo un error ejecutando la herramienta solicitada. Intenta de nuevo o pide ayuda a una persona del negocio.' };
     }
 
 

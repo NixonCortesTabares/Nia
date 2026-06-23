@@ -44,6 +44,4 @@ router.get('/', authMiddleware, controller.ObtenerExtrasPorNegocio);
 router.post('/', authMiddleware, controller.CrearExtra);
 router.get('/:id', authMiddleware, controller.MostrarInfoExtra);
 router.patch('/:id', authMiddleware, controller.ActualizarExtra);
-router.patch('/:id/desactivar', authMiddleware, controller.DesactivarExtra);
-
 export default router;

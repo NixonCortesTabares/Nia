@@ -5,106 +5,111 @@ import { ObtenerDetallePedidoUseCase } from '../../../application/pedidos/Obtene
 import { IPedidoProductoRepository } from '../../../domain/repositories/IPedidoProductoRepository';
 import { IPedidoProductoExtraRepository } from '../../../domain/repositories/IPedidoProductoExtraRepository';
 import { CambiarEstadoPedidoUseCase } from '../../../application/pedidos/CambiarEstadoPedidoUseCase';
+import { EnviarMensajeEstadoPedidoActualizadoUseCase } from '../../../application/conversaciones/EnviarMensajeEstadoPedidoActualizadoUseCase';
+import { INegocioRepository } from '../../../domain/repositories/INegocioRepository';
+import { IClienteRepository } from '../../../domain/repositories/IClienteRepository';
+import { IConversacionRepository } from '../../../domain/repositories/IConversacionRepository';
 
 export class PedidoController {
     constructor(private pedidoRepository: IPedidoRepository, private pedidoProductoRepo: IPedidoProductoRepository,
-        private pedidoProdExtraRepo: IPedidoProductoExtraRepository) { }
+        private pedidoProdExtraRepo: IPedidoProductoExtraRepository, private negocioRepo: INegocioRepository,
+        private clienteRepo: IClienteRepository, private conversacionRepo: IConversacionRepository ) { }
 
     ListarPedidosPorNegocio = async (req: Request, res: Response) => {
-  try {
-    if (!req.user?.negocioId) {
-      return res.status(401).json({
-        ok: false,
-        mensaje: 'Usuario no autenticado.',
-      });
-    }
+        try {
+            if (!req.user?.negocioId) {
+                return res.status(401).json({
+                    ok: false,
+                    mensaje: 'Usuario no autenticado.',
+                });
+            }
 
-    const estadosPermitidos = [
-      'pendiente',
-      'en_cocina',
-      'en_ruta',
-      'entregado',
-      'cancelado',
-    ];
+            const estadosPermitidos = [
+                'pendiente',
+                'en_cocina',
+                'en_ruta',
+                'entregado',
+                'cancelado',
+            ];
 
-    const rangosPermitidos = ['hoy', '7d', '30d', 'mes'];
+            const rangosPermitidos = ['hoy', '7d', '30d', 'mes'];
 
-    const estado =
-      typeof req.query.estado === 'string'
-        ? req.query.estado.toLowerCase()
-        : undefined;
+            const estado =
+                typeof req.query.estado === 'string'
+                    ? req.query.estado.toLowerCase()
+                    : undefined;
 
-    if (estado && !estadosPermitidos.includes(estado)) {
-      return res.status(400).json({
-        ok: false,
-        mensaje: 'Estado de pedido no válido.',
-      });
-    }
+            if (estado && !estadosPermitidos.includes(estado)) {
+                return res.status(400).json({
+                    ok: false,
+                    mensaje: 'Estado de pedido no válido.',
+                });
+            }
 
-    const rango =
-      typeof req.query.rango === 'string'
-        ? req.query.rango.toLowerCase()
-        : undefined;
+            const rango =
+                typeof req.query.rango === 'string'
+                    ? req.query.rango.toLowerCase()
+                    : undefined;
 
-    if (rango && !rangosPermitidos.includes(rango)) {
-      return res.status(400).json({
-        ok: false,
-        mensaje: 'Rango no válido. Usa hoy, 7d, 30d o mes.',
-      });
-    }
+            if (rango && !rangosPermitidos.includes(rango)) {
+                return res.status(400).json({
+                    ok: false,
+                    mensaje: 'Rango no válido. Usa hoy, 7d, 30d o mes.',
+                });
+            }
 
-    const desde =
-      typeof req.query.desde === 'string'
-        ? req.query.desde
-        : undefined;
+            const desde =
+                typeof req.query.desde === 'string'
+                    ? req.query.desde
+                    : undefined;
 
-    const hasta =
-      typeof req.query.hasta === 'string'
-        ? req.query.hasta
-        : undefined;
+            const hasta =
+                typeof req.query.hasta === 'string'
+                    ? req.query.hasta
+                    : undefined;
 
-    const limitRaw = Number(req.query.limit ?? 50);
-    const offsetRaw = Number(req.query.offset ?? 0);
+            const limitRaw = Number(req.query.limit ?? 50);
+            const offsetRaw = Number(req.query.offset ?? 0);
 
-    const limit = Number.isFinite(limitRaw)
-      ? Math.min(Math.max(limitRaw, 1), 100)
-      : 50;
+            const limit = Number.isFinite(limitRaw)
+                ? Math.min(Math.max(limitRaw, 1), 100)
+                : 50;
 
-    const offset = Number.isFinite(offsetRaw)
-      ? Math.max(offsetRaw, 0)
-      : 0;
+            const offset = Number.isFinite(offsetRaw)
+                ? Math.max(offsetRaw, 0)
+                : 0;
 
-    const listarPedidosUseCase = new ListarPedidosUseCase(
-      this.pedidoRepository
-    );
+            const listarPedidosUseCase = new ListarPedidosUseCase(
+                this.pedidoRepository
+            );
 
-    const pedidos = await listarPedidosUseCase.execute({
-      negocioId: req.user.negocioId,
-      estado,
-      rango,
-      desde,
-      hasta,
-      limit,
-      offset,
-    });
+            const pedidos = await listarPedidosUseCase.execute({
+                negocioId: req.user.negocioId,
+                estado,
+                rango,
+                desde,
+                hasta,
+                limit,
+                offset,
+            });
 
-    return res.status(200).json({
-      ok: true,
-      mensaje: 'Pedidos obtenidos exitosamente.',
-      pedidos,
-    });
-  } catch (error) {
-    console.error('Error obteniendo pedidos:', error);
+            return res.status(200).json({
+                ok: true,
+                mensaje: 'Pedidos obtenidos exitosamente.',
+                pedidos,
+            });
+        } catch (error) {
+            console.error('Error obteniendo pedidos:', error);
 
-    return res.status(500).json({
-      ok: false,
-      mensaje:
-        error instanceof Error
-          ? error.message
-          : 'Error interno obteniendo pedidos.',
-    });
-  }
-};
+            return res.status(500).json({
+                ok: false,
+                mensaje:
+                    error instanceof Error
+                        ? error.message
+                        : 'Error interno obteniendo pedidos.',
+            });
+        }
+    };
 
     MostrarInfoPedido = async (req: Request, res: Response) => {
         try {
@@ -213,6 +218,10 @@ export class PedidoController {
                     mensaje: 'Pedido no encontrado.',
                 });
             }
+
+            //const enviarMenEstPedActu = new EnviarMensajeEstadoPedidoActualizadoUseCase(this.negocioRepo, this.pedidoRepository, this.clienteRepo, this.conversacionRepo);
+
+           // await enviarMenEstPedActu.execute(estado, id, req.user.negocioId);
 
             return res.status(200).json({
                 ok: true,

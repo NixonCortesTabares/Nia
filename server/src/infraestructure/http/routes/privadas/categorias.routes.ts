@@ -12,6 +12,4 @@ router.get('/', authMiddleware, controller.ObtenerCategoriasPorNegocio);
 router.post('/', authMiddleware, controller.CrearCategoria);
 router.get('/:id', authMiddleware, controller.MostrarInfoCategoria);
 router.patch('/:id', authMiddleware, controller.ActualizarCategoria);
-router.patch('/:id/desactivar', authMiddleware, controller.DesactivarCategoria);
-router.patch('/:id/activar', authMiddleware, controller.ActivarCategoria);
 export default router;

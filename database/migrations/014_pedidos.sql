@@ -14,5 +14,6 @@ CREATE TABLE pedidos (
     total           INTEGER,
     estado          VARCHAR(20) NOT NULL CHECK(estado IN('pendiente', 'en_cocina', 'en_ruta', 'entregado', 'cancelado')),
     notas           VARCHAR(300),
-    creado_en       TIMESTAMP DEFAULT NOW()
+    creado_en       TIMESTAMP DEFAULT NOW(),
+    costo_domicilio NUMERIC(12, 2) NOT NULL DEFAULT 0;
 );

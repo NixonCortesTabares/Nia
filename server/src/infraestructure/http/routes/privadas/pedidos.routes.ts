@@ -4,13 +4,19 @@ import { PedidoController } from '../../controllers/PedidoController';
 import { PedidoRepository } from '../../../repositories/PedidoRepository';
 import { PedidoProductoRepository } from '../../../repositories/PedidoProductoRepository';
 import { PedidoProductoExtraRepository } from '../../../repositories/PedidoProductoExtraRepository';
+import { NegocioRepository } from '../../../repositories/NegocioRepository';
+import { ClienteRepository } from '../../../repositories/ClienteRepository';
+import { ConversacionRepository } from '../../../repositories/ConversacionRepository';
 
 const router = Router();
 
 const pedidoRepository = new PedidoRepository();
 const pedidoProdRepo = new PedidoProductoRepository();
 const pedProdExtraRepo = new PedidoProductoExtraRepository();
-const controller = new PedidoController(pedidoRepository, pedidoProdRepo, pedProdExtraRepo);
+const negocioRepo = new NegocioRepository();
+const clienteRepo = new ClienteRepository();
+const conversacionRepo = new ConversacionRepository()
+const controller = new PedidoController(pedidoRepository, pedidoProdRepo, pedProdExtraRepo, negocioRepo, clienteRepo, conversacionRepo);
 
 router.get('/', authMiddleware, controller.ListarPedidosPorNegocio);
 /*

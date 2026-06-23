@@ -9,6 +9,7 @@ export class ActualizarNegocioUseCase {
             nombre: data.nombre,
             ciudad: data.ciudad,
             direccion: data.direccion,
+            costo_domicilio: data.costo_domicilio
         });
 
         return resultado;

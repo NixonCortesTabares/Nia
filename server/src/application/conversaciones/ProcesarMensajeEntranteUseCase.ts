@@ -24,7 +24,7 @@ export class ProcesarMensajeEntranteUseCase {
         }
 
         if(!negocio.activo){
-            throw new Error('Negocio inactivo.')
+            throw new Error('Negocio inactivo.');
         }
 
         let cliente = await this.clienteRepository.buscarPorTelefono(negocio.id, data.from);
@@ -50,13 +50,12 @@ export class ProcesarMensajeEntranteUseCase {
             conversacionActiva = crearConversacion;
 
              const menuUseCase = new GetMenuUseCase(this.negocioRepository)
-             if(negocio.telefonoWs){
                  const menu = await menuUseCase.execute(data.phoneId);
                 
                 if(menu){
                   await enviarMensaje(data.from, `Bienvenido a ${negocio.nombre}! Aquí nuestro menú: ${menu}`, data.phoneId)
                 }
-             }
+             
         }
 
         const conversacionActualizada = await this.conversacionRepository.actualizar(conversacionActiva.id, {

@@ -1,6 +1,7 @@
 import { PedidoBorrador, PedidoBorradorItem } from "../../domain/entities/Conversacion";
 import { CategoriaExtraRepository } from "../../infraestructure/repositories/CategoriaExtraRepository";
 import { ExtraRepository } from "../../infraestructure/repositories/ExtraRepository";
+import { NegocioRepository } from "../../infraestructure/repositories/NegocioRepository";
 import { ProductoRepository } from "../../infraestructure/repositories/ProductoRepository";
 import { PrepararPedidoService } from "../pedidos/services/PrepararPedidoService";
 
@@ -27,11 +28,12 @@ export async function resolverPedidoBorradorUseCase(
   const productoRepo = new ProductoRepository();
   const extraRepo = new ExtraRepository();
   const categoriaExtraRepo = new CategoriaExtraRepository();
-
+  const negocioRepo = new NegocioRepository();
   const resolvedor = new PrepararPedidoService(
     productoRepo,
     extraRepo,
-    categoriaExtraRepo
+    categoriaExtraRepo,
+    negocioRepo
   );
 
   const itemsResueltos: PedidoBorradorItem[] = [];
