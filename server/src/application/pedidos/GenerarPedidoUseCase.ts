@@ -1,6 +1,7 @@
 import { Pedido, TipoEntrega, metodoPago } from '../../domain/entities/Pedido';
 import { PedidoProducto } from '../../domain/entities/PedidoProducto';
 import { PedidoProductoExtra } from '../../domain/entities/PedidoProductoExtra';
+import { IClienteRepository } from '../../domain/repositories/IClienteRepository';
 import {
   IPedidoRepository,
 } from '../../domain/repositories/IPedidoRepository';
@@ -73,21 +74,41 @@ export function normalizarTexto(valor: string): string {
 export class GenerarPedidoUseCase {
   constructor(
     private pedidoRepository: IPedidoRepository,
-    private prepararPedidoService: PrepararPedidoService
+    private prepararPedidoService: PrepararPedidoService,
+    private clienteRepo: IClienteRepository
   ) { }
 
   async execute(input: GenerarPedidoUseCaseDTO): Promise<GenerarPedidoResumen> {
 
     const pedidoPreparado = await this.prepararPedidoService.execute(input);
+    const clienteTel = await this.clienteRepo.buscarPorId(pedidoPreparado.pedido.clienteId);
+    console.log(clienteTel)
+    if (!clienteTel) {
+      const pedidoCompleto = await this.pedidoRepository.crearCompleto(pedidoPreparado);
+      return {
+        pedido: pedidoCompleto.pedido,
+        productos: pedidoCompleto.productos,
+        total: pedidoCompleto.pedido.total,
+      };
+    }
+    else {
+      const pedidoPendiente = await this.pedidoRepository.buscarPendientesPorCliente(pedidoPreparado.pedido.negocioId, clienteTel?.telefono);
+      if (!pedidoPendiente) {
+        const pedidoCompleto = await this.pedidoRepository.crearCompleto(pedidoPreparado);
+        return {
+          pedido: pedidoCompleto.pedido,
+          productos: pedidoCompleto.productos,
+          total: pedidoCompleto.pedido.total,
+        };
+      }
+      else{
+        throw new Error('El cliente ya tiene un pedido pendiente.')
+      }
+    }
 
-    const pedidoCompleto = await this.pedidoRepository.crearCompleto(pedidoPreparado);
-    return {
-      pedido: pedidoCompleto.pedido,
-      productos: pedidoCompleto.productos,
-      total: pedidoCompleto.pedido.total,
-    };
+
   }
 
-  
+
 }
 

@@ -315,13 +315,17 @@ export class PedidoRepository implements IPedidoRepository {
   }
   async buscarPendientesPorCliente(negocioId: string, telefonoCliente: string): Promise<Pedido | null> {
     const result = await pool.query<PedidoRow>(
-      `SELECT ${pedidoColumns}
-       FROM pedidos
-       WHERE negocio_id = $1
-         AND telefono_cliente = $2
-         AND estado IN('pendiente', 'confirmado')
-       ORDER BY creado_en DESC
-       LIMIT 1`,
+      `SELECT p.id, p.negocio_id, p.cliente_id, p.conversacion_id, p.nombre_cliente, p.telefono_cliente,
+  p.tipo_entrega, p.direccion_entrega, p.metodo_pago, p.costo_domicilio, p.total, p.estado, p.notas, p.creado_en
+   FROM pedidos p
+   INNER JOIN clientes c
+     ON c.id = p.cliente_id
+    AND c.negocio_id = p.negocio_id
+   WHERE p.negocio_id = $1
+     AND c.telefono = $2
+     AND p.estado IN ('pendiente', 'confirmado')
+   ORDER BY p.creado_en DESC
+   LIMIT 1`,
       [negocioId, telefonoCliente]
     );
 

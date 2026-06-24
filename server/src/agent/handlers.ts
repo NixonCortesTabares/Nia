@@ -13,6 +13,7 @@ import { ExtraRepository } from "../infraestructure/repositories/ExtraRepository
 import { CategoriaExtraRepository } from "../infraestructure/repositories/CategoriaExtraRepository";
 import { PrepararPedidoService } from "../application/pedidos/services/PrepararPedidoService";
 import { ModificarOCancelarPedidoUseCase } from "../application/pedidos/ModificarOCancelarPedidoUseCase";
+import { ClienteRepository } from "../infraestructure/repositories/ClienteRepository";
 
 function textoValido(valor: unknown): valor is string {
     return typeof valor === 'string' && valor.trim().length > 0;
@@ -50,7 +51,7 @@ export async function ejecutarHerramienta(nombre: string, input: any,
                     ok: false, mensaje: 'No se pudo actualizar la conversacion'
                 };
             }
-            return { ok: false, mensaje: 'Conversacion escalada exitosamente. Un humano atenderá al cliente pronto.' };
+            return { ok: true, mensaje: 'Una persona te atenderá pronto.' };
         }
 
         if (nombre === 'generar_pedido') {
@@ -75,9 +76,11 @@ export async function ejecutarHerramienta(nombre: string, input: any,
             const categoriaExtraRepo = new CategoriaExtraRepository();
             const negocioRepo = new NegocioRepository();
             const pedidoService = new PrepararPedidoService(productoRepo, extraRepo, categoriaExtraRepo, negocioRepo);
+            const clienteRepo = new ClienteRepository();
             const generarPedidoUseCase = new GenerarPedidoUseCase(
                 pedidoRepo,
-                pedidoService
+                pedidoService,
+                clienteRepo
             );
 
             const pedidoGenerado = await generarPedidoUseCase.execute({
