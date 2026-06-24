@@ -53,7 +53,7 @@ export class ProcesarMensajeEntranteUseCase {
                  const menu = await menuUseCase.execute(data.phoneId);
                 
                 if(menu){
-                  await enviarMensaje(data.from, `Bienvenido a ${negocio.nombre}! Aquí nuestro menú: ${menu}`, data.phoneId)
+                  await enviarMensaje(data.from, `Bienvenido a ${negocio.nombre}! Aquí nuestro menú: nia-two.vercel.app/menu/${menu}`, data.phoneId)
                 }
              
         }
@@ -73,7 +73,7 @@ export class ProcesarMensajeEntranteUseCase {
             rol: 'cliente',
             contenido: data.text,
             wamid: data.wamid
-        });
+        }, negocio.id);
 
         return {
             negocio,

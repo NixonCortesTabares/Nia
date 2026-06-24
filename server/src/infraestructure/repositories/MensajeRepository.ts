@@ -23,38 +23,40 @@ function mapMensaje(row: MensajeRow): Mensaje {
 }
 
 export class MensajeRepository implements IMensajeRepository {
-  async crear(data: CrearMensajeDTO): Promise<Mensaje> {
+  async crear(data: CrearMensajeDTO, negocioId: string): Promise<Mensaje> {
     const result = await pool.query<MensajeRow>(
-      `INSERT INTO mensajes (conversacion_id, rol, contenido, wamid)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO mensajes (conversacion_id, rol, contenido, wamid, negocio_id)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING id, conversacion_id, rol, contenido, wamid, enviado_en`,
-      [data.conversacionId, data.rol, data.contenido, data.wamid]
+      [data.conversacionId, data.rol, data.contenido, data.wamid, negocioId]
     );
 
     return mapMensaje(result.rows[0]);
   }
 
-  async buscarPorConversacion(conversacionId: string): Promise<Mensaje[]> {
+  async buscarPorConversacion(conversacionId: string, negocioId:string): Promise<Mensaje[]> {
     const result = await pool.query<MensajeRow>(
       `SELECT id, conversacion_id, rol, contenido, wamid, enviado_en
        FROM mensajes
        WHERE conversacion_id = $1
+       AND negocio_id = $2
        ORDER BY enviado_en ASC`,
-      [conversacionId]
+      [conversacionId, negocioId]
     );
 
     return result.rows.map(mapMensaje);
   }
 
-  async buscarUltimoMensajeCliente(conversacionId: string): Promise<Mensaje | null> {
+  async buscarUltimoMensajeCliente(conversacionId: string, negocioId:string): Promise<Mensaje | null> {
     const result = await pool.query<MensajeRow>(
       `SELECT id, conversacion_id, rol, contenido, wamid, enviado_en
        FROM mensajes
        WHERE conversacion_id = $1
          AND rol = 'cliente'
+         AND negocio_id = $2
        ORDER BY enviado_en DESC
        LIMIT 1`,
-      [conversacionId]
+      [conversacionId, negocioId]
     );
 
     if (!result.rows[0]) {

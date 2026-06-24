@@ -11,6 +11,8 @@ import categoriasRoutes from './infraestructure/http/routes/privadas/categorias.
 import negociosRoutes from './infraestructure/http/routes/privadas/negocios.routes';
 import extrasRoutes from './infraestructure/http/routes/privadas/extras.routes';
 import menuRoutes from './infraestructure/http/routes/publicas/menu.routes';
+import mensajesRoutes from './infraestructure/http/routes/privadas/mensajes.routes';
+import conversacionesRoutes from './infraestructure/http/routes/privadas/conversaciones.routes';
 dotenv.config();
 
 const app = express();
@@ -46,6 +48,8 @@ apiRouter.use('/categorias', categoriasRoutes);
 apiRouter.use('/negocios', negociosRoutes);
 apiRouter.use('/extras', extrasRoutes)
 apiRouter.use('/menu', menuRoutes)
+apiRouter.use('/mensajes', mensajesRoutes);
+apiRouter.use('/conversaciones', conversacionesRoutes);
 app.use('/api', apiRouter);
 
 startAgentWorker();

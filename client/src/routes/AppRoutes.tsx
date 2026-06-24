@@ -11,6 +11,7 @@ import { ResumenPage } from '../pages/ResumenPage'
 import { MenuPublicoPage } from '../pages/MenuPublicoPage'
 import { PrivacidadPage } from '../pages/PrivacidadPage'
 import { EliminacionDatosPage } from '../pages/EliminacionDatosPage'
+import { TerminosPage } from '../pages/TerminosPage'
 
 export function useRouter() {
   const navigateTo = useNavigate()
@@ -31,6 +32,7 @@ export function AppRoutes() {
         <Route path="/agendar-visita" element={<AgendarVisitaPage />} />
         <Route path="/privacidad" element={<PrivacidadPage />} />
         <Route path="/eliminacion-datos" element={<EliminacionDatosPage />} />
+        <Route path="/terminos" element={<TerminosPage />} />
         <Route path="/dashboard" element={<DashboardLayout title="Dashboard"><DashboardPage /></DashboardLayout>} />
         <Route path="/pedidos" element={<DashboardLayout title="Pedidos"><PedidosPage /></DashboardLayout>} />
         <Route path="/menu" element={<DashboardLayout title="Menu"><MenuPage /></DashboardLayout>} />

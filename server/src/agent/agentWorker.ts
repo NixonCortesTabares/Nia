@@ -126,7 +126,7 @@ async function procesarConversacionPendiente(
   }
 
   const ultimoMensajeCliente = await mensajeRepo.buscarUltimoMensajeCliente(
-    conversacion.id
+    conversacion.id, negocio.id
   );
 
   if (!ultimoMensajeCliente) {
@@ -134,7 +134,7 @@ async function procesarConversacionPendiente(
     return;
   }
 
-  const historial = (await mensajeRepo.buscarPorConversacion(conversacion.id)).slice(-4);
+  const historial = (await mensajeRepo.buscarPorConversacion(conversacion.id, negocio.id)).slice(-4);
 
   const menuBruto = await productoRepo.buscarMenuActivoPorNegocio(negocio.id);
 
@@ -174,7 +174,7 @@ async function procesarConversacionPendiente(
       rol: "agente",
       contenido: respuesta.mensajeCliente,
       wamid: wamidRta,
-    });
+    }, negocio.id);
 
     //console.log("Respuesta enviada por worker");
   }

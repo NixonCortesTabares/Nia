@@ -154,7 +154,7 @@ router.post('/', async (req, res) => {
           rol: "agente",
           contenido: respuestaPredefinida,
           wamid: wamidRta,
-        });
+        }, resultado.negocio.id);
 
         return;
       }
@@ -170,7 +170,7 @@ router.post('/', async (req, res) => {
           contenido: respuestaPredefinida,
           rol: 'agente',
           wamid: wamidRta,
-        });
+        }, resultado.negocio.id);
 
         return;
       }

@@ -3,5 +3,6 @@ CREATE TABLE mensajes (
     conversacion_id     UUID NOT NULL REFERENCES conversaciones(id),
     rol                 VARCHAR(10) NOT NULL,
     contenido           TEXT NOT NULL,
-    enviado_en          TIMESTAMP DEFAULT NOW()
+    enviado_en          TIMESTAMP DEFAULT NOW(),
+    negocio_id          UUID
 );

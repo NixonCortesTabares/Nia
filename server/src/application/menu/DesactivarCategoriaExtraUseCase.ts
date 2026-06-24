@@ -9,7 +9,7 @@ export interface DesactivarCategoriaExtraUseCaseDTO {
 export class DesactivarCategoriaExtraUseCase {
   constructor(private categoriaExtraRepository: ICategoriaExtraRepository) {}
 
-  async execute(input: DesactivarCategoriaExtraUseCaseDTO): Promise<CategoriaExtra | null> {
-    return this.categoriaExtraRepository.desactivar(input.id, input.negocioId);
+  /*async execute(input: DesactivarCategoriaExtraUseCaseDTO): Promise<CategoriaExtra | null> {
+    return this.categoriaExtraRepository.desactivar(input.id, input.negocioId);*/
   }
-}
+
