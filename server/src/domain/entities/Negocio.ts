@@ -9,6 +9,7 @@ export interface Negocio {
   creadoEn: Date;
   menu_link:string;
   costo_domicilio: number;
+  numtel: string
 }
 
 export interface CrearNegocioDTO {

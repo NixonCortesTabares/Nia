@@ -75,6 +75,7 @@ export async function ejecutarHerramienta(nombre: string, input: any,
             const extraRepo = new ExtraRepository();
             const categoriaExtraRepo = new CategoriaExtraRepository();
             const negocioRepo = new NegocioRepository();
+            const negocio = await negocioRepo.buscarPorId(negocioId);
             const pedidoService = new PrepararPedidoService(productoRepo, extraRepo, categoriaExtraRepo, negocioRepo);
             const clienteRepo = new ClienteRepository();
             const generarPedidoUseCase = new GenerarPedidoUseCase(
@@ -134,6 +135,7 @@ El domicilio tiene un valor de $${pedidoGenerado.pedido.costoDomicilio}
 Total: $${pedidoGenerado.total}
                 
 *No olvides mandar pantallazo de la transferencia para poder empezar a realizar el pedido*
+*Numero de nequi/bancolombia:* ${negocio?.numtel}
 *Por temas de organización y sistema, tienes 3 minutos en caso de que quieras modificar tu pedido.*`
                 };
             }
@@ -163,6 +165,7 @@ Por temas de organización y sistema, tienes 3 minutos en caso de que quieras mo
             const extraRepo = new ExtraRepository();
             const categoriaExtraRepo = new CategoriaExtraRepository();
             const negocioRepo = new NegocioRepository();
+            const negocio = await negocioRepo.buscarPorId(negocioId);
             const pedidoService = new PrepararPedidoService(productoRepo, extraRepo, categoriaExtraRepo, negocioRepo);
             const modificarOCancelarPedidoUseCase = new ModificarOCancelarPedidoUseCase(
                 pedidoRepo,
@@ -239,6 +242,7 @@ Productos:
 El domicilio tiene un valor de $${pedidoGenerado.pedido.costoDomicilio}
 Total: $${pedidoGenerado.total}
 *Recuerda enviar el comprobante de la transacción para poder pasar el pedido a cocina.*
+*Numero de nequi/bancolombia:* ${negocio?.numtel}
 `
                     };
                 }
