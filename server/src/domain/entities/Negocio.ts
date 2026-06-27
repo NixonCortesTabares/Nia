@@ -10,6 +10,9 @@ export interface Negocio {
   menu_link:string;
   costo_domicilio: number;
   numtel: string
+  menupdf: string;
+  menufoto: string;
+  tipomenu: string;
 }
 
 export interface CrearNegocioDTO {

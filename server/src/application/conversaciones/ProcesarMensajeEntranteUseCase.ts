@@ -4,6 +4,8 @@ import { IMensajeRepository } from '../../domain/repositories/IMensajeRepository
 import { IClienteRepository } from '../../domain/repositories/IClienteRepository';
 import { GetMenuUseCase } from '../menu/GetMenuUseCase';
 import { enviarMensaje } from '../../agent/whatsapp';
+import { pdfwhatsapp } from '../../agent/pdfwhatsapp';
+import { imgwhatsapp } from '../../agent/imgwhatsapp';
 
 export interface WhatsappData {
     wamid: string,
@@ -53,7 +55,27 @@ export class ProcesarMensajeEntranteUseCase {
                  const menu = await menuUseCase.execute(data.phoneId);
                 
                 if(menu){
-                  await enviarMensaje(data.from, `Bienvenido a ${negocio.nombre}! Aquí nuestro menú: nia-two.vercel.app/menu/${menu}`, data.phoneId)
+                    const caption = `Bienvenido a ${negocio.nombre}! Este es nuestro menú. ¿Qué deseas pedir?`
+                    if(menu.tipomenu === 'link'){
+                        await enviarMensaje(data.from, `Bienvenido a ${negocio.nombre}! Aquí nuestro menú: nia-two.vercel.app/menu/${menu.menu_link}`, data.phoneId);
+                    }
+                    else if(menu.tipomenu === 'pdf'){
+                        await pdfwhatsapp({
+                            phoneId: data.phoneId,
+                            to: data.from,
+                            documentUrl: menu.menupdf,
+                            filename: `menu-${negocio.nombre}.pdf`,
+                            caption: caption
+                        });
+                    }
+                    else if(menu.tipomenu === 'foto'){
+                        await imgwhatsapp({
+                            phoneId: data.phoneId,
+                            to: data.from,
+                            imageUrl: menu.menufoto,
+                            caption: caption
+                        });
+                    }
                 }
              
         }

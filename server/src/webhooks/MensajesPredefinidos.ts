@@ -39,10 +39,10 @@ export function clasificarMensaje(mensaje: string): which {
 
 export function responderMensajePredefinido(mensaje: which): string | null {
   const rtaSaludos = [
-    "¡Hola! ¿En qué te puedo ayudar?",
-    "¡Buenas! ¿Cómo te puedo ayudar?",
-    "Hola, ¿en qué te puedo colaborar?",
-    "Cuéntame, ¿Que deseas pedir hoy?",
+    "¡Hola! A la orden",
+    "¡Buenas! ¿A su servicio?",
+    "Hola, ¿Como estás? A la orden",
+    "Buenas, ¿Que deseas pedir hoy?",
   ];
 
   const rtaDespedidas = [

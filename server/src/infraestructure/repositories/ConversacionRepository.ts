@@ -37,14 +37,27 @@ function mapConversacion(row: ConversacionRow): Conversacion {
 }
 
 export class ConversacionRepository implements IConversacionRepository {
+
+  async cerrarConversaciones(): Promise<void> {
+    const result = await pool.query(`
+    UPDATE conversaciones
+    SET estado = 'resuelta'
+    WHERE estado IN ('activa', 'escalada')
+      AND ultimo_mensaje_en IS NOT NULL
+      AND ultimo_mensaje_en < (NOW() AT TIME ZONE 'America/Bogota') - INTERVAL '2 hours';
+  `);
+
+    console.log(`Conversaciones cerradas automáticamente: ${result.rowCount}`);
+  }
+
   async actualizarItemsPedidoBorrador(
-  conversacionId: string,
-  items: PedidoBorradorItem[]
-): Promise<PedidoBorrador | null> {
-  const result = await pool.query<{
-    pedido_borrador: PedidoBorrador;
-  }>(
-    `
+    conversacionId: string,
+    items: PedidoBorradorItem[]
+  ): Promise<PedidoBorrador | null> {
+    const result = await pool.query<{
+      pedido_borrador: PedidoBorrador;
+    }>(
+      `
     UPDATE conversaciones
     SET pedido_borrador = jsonb_set(
       pedido_borrador,
@@ -55,15 +68,15 @@ export class ConversacionRepository implements IConversacionRepository {
     WHERE id = $1
     RETURNING pedido_borrador
     `,
-    [conversacionId, JSON.stringify(items)]
-  );
+      [conversacionId, JSON.stringify(items)]
+    );
 
-  if (result.rows.length === 0) {
-    return null;
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    return result.rows[0].pedido_borrador;
   }
-
-  return result.rows[0].pedido_borrador;
-}
   async obtenerPedidoBorrador(conversacionId: string): Promise<PedidoBorrador | null> {
     const result = await pool.query<{
       pedido_borrador: PedidoBorrador;

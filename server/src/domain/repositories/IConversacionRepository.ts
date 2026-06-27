@@ -17,4 +17,5 @@ export interface IConversacionRepository {
   actualizarPedidoBorrador(conversacionId:string, pedidoBorrador: PedidoBorrador):Promise<Conversacion | null>;
   obtenerPedidoBorrador(conversacionId:string):Promise<PedidoBorrador | null>;
   actualizarItemsPedidoBorrador(conversacionId: string,items: PedidoBorradorItem[]): Promise<PedidoBorrador | null>;
+  cerrarConversaciones():Promise<void>;
 }

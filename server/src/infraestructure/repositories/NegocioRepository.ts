@@ -14,6 +14,9 @@ interface NegocioRow {
   menu_link:string;
   costo_domicilio: number;
   numtel: string;
+  menupdf: string;
+  menufoto: string;
+  tipomenu: string;
 }
 
 function mapNegocio(row: NegocioRow): Negocio {
@@ -28,25 +31,36 @@ function mapNegocio(row: NegocioRow): Negocio {
     creadoEn: row.creado_en,
     menu_link: row.menu_link,
     costo_domicilio: row.costo_domicilio,
-    numtel: row.numtel
+    numtel: row.numtel,
+    menupdf: row.menupdf,
+    menufoto: row.menufoto,
+    tipomenu: row.tipomenu
   };
 }
 
+export interface TiposMenu{
+  menu_link: string;
+  menupdf: string;
+  menufoto: string;
+  tipomenu: string;
+}
+
 export class NegocioRepository implements INegocioRepository {
-  async getMenuRestaurante(wamid: string): Promise<string | null> {
-    const result = await pool.query<{menu_link: string}>(
-      `SELECT menu_link FROM negocios WHERE telefono_ws = $1;`, [wamid]
+  async getMenuRestaurante(wamid: string): Promise<TiposMenu | null> {
+    const result = await pool.query<{menu_link: string, menupdf: string, menufoto: string, tipomenu: string}>(
+      `SELECT menu_link, menupdf, menufoto, tipomenu FROM negocios WHERE telefono_ws = $1;`, [wamid]
     )
 
     if(!result.rows[0]){
       return null;
     }
 
-    return result.rows[0].menu_link;
+    return result.rows[0];
   }
   async buscarPorTelefonoWs(telefonoWs: string): Promise<Negocio | null> {
     const result = await pool.query<NegocioRow>(
-      `SELECT id, nombre, tipo, telefono_ws, ciudad, direccion, activo, creado_en, costo_domicilio, numtel
+      `SELECT id, nombre, tipo, telefono_ws, ciudad, direccion, activo, creado_en, costo_domicilio, numtel, 
+      menupdf, menufoto, tipomenu
        FROM negocios WHERE telefono_ws = $1;`,
       [telefonoWs]
     );
@@ -61,7 +75,8 @@ export class NegocioRepository implements INegocioRepository {
     const result = await pool.query<NegocioRow>(
       `INSERT INTO negocios (nombre, tipo, ciudad, direccion)
        VALUES ($1, $2, $3, $4)
-       RETURNING id, nombre, tipo, telefono_ws, ciudad, direccion, activo, creado_en, costo_domicilio, numtel`,
+       RETURNING id, nombre, tipo, telefono_ws, ciudad, direccion, activo, creado_en, costo_domicilio, numtel,
+       menupdf, menufoto, tipomenu`,
       [
         data.nombre,
         data.tipo,
@@ -75,7 +90,8 @@ export class NegocioRepository implements INegocioRepository {
 
   async buscarPorId(id: string): Promise<Negocio | null> {
     const result = await pool.query<NegocioRow>(
-      `SELECT id, nombre, tipo, telefono_ws, ciudad, direccion, activo, creado_en, menu_link, costo_domicilio, numtel
+      `SELECT id, nombre, tipo, telefono_ws, ciudad, direccion, activo, creado_en, menu_link, costo_domicilio, numtel,
+      menupdf, menufoto, tipomenu
        FROM negocios
        WHERE id = $1`,
       [id]
@@ -98,7 +114,8 @@ export class NegocioRepository implements INegocioRepository {
            direccion = COALESCE($6, direccion),
            costo_domicilio = COALESCE($7, costo_domicilio)
        WHERE id = $1
-       RETURNING id, nombre, tipo, telefono_ws, ciudad, direccion, activo, creado_en, menu_link, costo_domicilio`,
+       RETURNING id, nombre, tipo, telefono_ws, ciudad, direccion, activo, creado_en, menu_link, costo_domicilio,
+       menupdf, menufoto, tipomenu`,
       [
         id,
         data.nombre ?? null,

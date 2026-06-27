@@ -13,6 +13,8 @@ import extrasRoutes from './infraestructure/http/routes/privadas/extras.routes';
 import menuRoutes from './infraestructure/http/routes/publicas/menu.routes';
 import mensajesRoutes from './infraestructure/http/routes/privadas/mensajes.routes';
 import conversacionesRoutes from './infraestructure/http/routes/privadas/conversaciones.routes';
+import { CerrarConversacionesUseCase } from './application/conversaciones/CerrarConversacionesUseCase';
+import { ConversacionRepository } from './infraestructure/repositories/ConversacionRepository';
 dotenv.config();
 
 const app = express();
@@ -53,6 +55,20 @@ apiRouter.use('/conversaciones', conversacionesRoutes);
 app.use('/api', apiRouter);
 
 startAgentWorker();
+const repoConver = new ConversacionRepository()
+const cerrarConUseCase = new CerrarConversacionesUseCase(repoConver)
+
+const CERRAR_CONVERSACIONES_INTERVAL_MS = 10 * 60 * 1000;
+
+cerrarConUseCase.execute().catch((error) => {
+  console.error('Error cerrando conversaciones al iniciar:', error);
+});
+
+setInterval(() => {
+  cerrarConUseCase.execute().catch((error) => {
+  console.error('Error cerrando conversaciones al iniciar:', error);
+});
+}, CERRAR_CONVERSACIONES_INTERVAL_MS);
 
 // Ruta de salud â€” para verificar que el servidor funciona
 apiRouter.get('/health', async (req, res) => {
