@@ -7,7 +7,7 @@ export interface Producto{
     descripcion: string,
     valor: number,
     activo: boolean,
-
+    codigoMenu: number
 }
 
 export interface CrearProductoDTO{

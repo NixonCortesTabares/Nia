@@ -28,5 +28,6 @@ export interface EditarNegocioDTO {
   telefonoWs?: string;
   ciudad?: string;
   direccion?: string;
-  costo_domicilio?:string
+  costo_domicilio?:string;
+  menu_link?: string
 }

@@ -219,9 +219,9 @@ export class PedidoController {
                 });
             }
 
-            //const enviarMenEstPedActu = new EnviarMensajeEstadoPedidoActualizadoUseCase(this.negocioRepo, this.pedidoRepository, this.clienteRepo, this.conversacionRepo);
+            const enviarMenEstPedActu = new EnviarMensajeEstadoPedidoActualizadoUseCase(this.negocioRepo, this.pedidoRepository, this.clienteRepo, this.conversacionRepo);
 
-           // await enviarMenEstPedActu.execute(estado, id, req.user.negocioId);
+            await enviarMenEstPedActu.execute(estado, id, req.user.negocioId);
 
             return res.status(200).json({
                 ok: true,

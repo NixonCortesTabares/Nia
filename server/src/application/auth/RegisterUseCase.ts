@@ -45,6 +45,7 @@ export class RegisterUseCase {
     if(!data.password || data.password.length < 4){
       throw new Error('Debe proporcionar una contraseña de al menos 4 caracteres');
     }
+
     // Verificar que el email no esté registrado
     const usuarioExistente = await this.usuarioRepository
       .buscarPorEmail(data.email);
@@ -56,7 +57,7 @@ export class RegisterUseCase {
     // Crear el negocio
     const negocio = await this.negocioRepository.crear({
       nombre: data.negocioNombre,
-      tipo: data.negocioTipo,
+      tipo: 'restaurante',
       ciudad: data.negocioCiudad,
       direccion: data.negocioDireccion,
     });

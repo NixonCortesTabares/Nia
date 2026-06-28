@@ -5,6 +5,7 @@ export interface IProductoRepository {
   crear(data: CrearProductoDTO): Promise<Producto>;
   buscarPorNegocio(negocioId: string): Promise<Producto[]>;
   buscarActivosPorNegocio(negocioId: string): Promise<Producto[]>;
+  buscarActivosPorNegocioYCodigo(negocioId: string, codigoProducto: number): Promise<Producto | null>
   buscarDisponiblesPorNegocio(negocioId: string): Promise<Producto[]>;
   buscarPorCategoria(negocioId: string, categoriaId: string): Promise<Producto[]>;
   buscarMenuActivoPorNegocio(negocioId: string):Promise<MenuProductoRow[]>

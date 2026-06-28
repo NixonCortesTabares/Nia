@@ -36,6 +36,7 @@ export class AuthController {
         data: resultado,
       });
     } catch (error) {
+      console.log(error);
       return res.status(400).json({
         ok: false,
         message: 'Error al registrar',

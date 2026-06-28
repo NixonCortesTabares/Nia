@@ -154,7 +154,7 @@ Productos:
   ${resumenItems}
 El domicilio tiene un valor de $${pedidoGenerado.pedido.costoDomicilio}
 Total: $${pedidoGenerado.total}.
-Por temas de organización y sistema, tienes 3 minutos en caso de que quieras modificar tu pedido.`
+*Por temas de organización y sistema, tienes 3 minutos en caso de que quieras modificar tu pedido.*`
                 };
             }
         }

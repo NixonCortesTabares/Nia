@@ -2,6 +2,7 @@ export type TipoConversacion = 'cita' | 'consulta' | 'cancelacion' | 'reagendami
 export type EstadoConversacion = 'activa' | 'resuelta' | 'escalada';
 
 export interface PedidoBorradorItem {
+  codigo_producto: number,
   nombre_producto: string;
   cantidad: number;
   extras: string[];

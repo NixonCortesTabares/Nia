@@ -72,9 +72,19 @@ export class ProcesarMensajeEntranteUseCase {
                         await imgwhatsapp({
                             phoneId: data.phoneId,
                             to: data.from,
-                            imageUrl: menu.menufoto,
-                            caption: caption
+                            imageUrl: 'https://res.cloudinary.com/dprp8axew/image/upload/v1782577355/WhatsApp_Image_2026-06-27_at_11.17.40_yl0ntx.jpg',
                         });
+                        await imgwhatsapp({
+                            phoneId: data.phoneId,
+                            to: data.from,
+                            imageUrl: 'https://res.cloudinary.com/dprp8axew/image/upload/v1782577360/WhatsApp_Image_2026-06-27_at_11.17.40_1_pmihj8.jpg',
+                        });
+                        await imgwhatsapp({
+                            phoneId: data.phoneId,
+                            to: data.from,
+                            imageUrl: 'https://res.cloudinary.com/dprp8axew/image/upload/v1782577367/WhatsApp_Image_2026-06-27_at_11.17.40_2_cu45q4.jpg',
+                        });
+
                     }
                 }
              

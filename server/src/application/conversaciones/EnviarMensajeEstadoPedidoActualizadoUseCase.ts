@@ -50,7 +50,7 @@ export class EnviarMensajeEstadoPedidoActualizadoUseCase {
 
         if (estado === 'entregado') {
             await enviarMensaje(cliente.telefono, "Esperamos que disfrutes de tu comida", negocio.telefonoWs);
-            await this.conversacionRepo.actualizar(pedido.conversacionId, { estado: 'resuelta' });
+            //await this.conversacionRepo.actualizar(pedido.conversacionId, { estado: 'resuelta' });
         }
     }
 }

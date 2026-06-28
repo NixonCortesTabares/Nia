@@ -142,13 +142,11 @@ router.post('/', async (req, res) => {
       return;
     }
 
-   
-    
     if (clasificacionMensaje === 'saludo') {
       const respuestaPredefinida = responderMensajePredefinido('saludo');
       if (respuestaPredefinida !== null) {
         const wamidRta = await enviarMensaje(resultado.cliente.telefono, respuestaPredefinida, phoneId);
-        
+
         await mensajeRepo.crear({
           conversacionId: resultado.conversacion.id,
           rol: "agente",

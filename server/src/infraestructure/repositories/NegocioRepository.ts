@@ -112,7 +112,8 @@ export class NegocioRepository implements INegocioRepository {
            telefono_ws = COALESCE($4, telefono_ws),
            ciudad = COALESCE($5, ciudad),
            direccion = COALESCE($6, direccion),
-           costo_domicilio = COALESCE($7, costo_domicilio)
+           costo_domicilio = COALESCE($7, costo_domicilio),
+           menu_link = COALESCE($8, menu_link)
        WHERE id = $1
        RETURNING id, nombre, tipo, telefono_ws, ciudad, direccion, activo, creado_en, menu_link, costo_domicilio,
        menupdf, menufoto, tipomenu`,
@@ -123,7 +124,8 @@ export class NegocioRepository implements INegocioRepository {
         data.telefonoWs ?? null,
         data.ciudad ?? null,
         data.direccion ?? null,
-        data.costo_domicilio ?? null
+        data.costo_domicilio ?? null,
+        data.menu_link ?? null
       ]
     );
 

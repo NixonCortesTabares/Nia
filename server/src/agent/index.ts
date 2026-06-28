@@ -134,7 +134,8 @@ export async function runAgentTurnAnthropic(
           max_tokens: 2048,
           system: buildSystemPromptConBorrador(
             params.negocio,
-            params.pedidoBorrador
+            params.pedidoBorrador,
+            params.menu
           ),
           tools,
           messages,
@@ -224,7 +225,8 @@ export async function runAgentTurnGroq(
         role: "system",
         content: buildSystemPromptConBorrador(
           params.negocio,
-          params.pedidoBorrador
+          params.pedidoBorrador,
+          params.menu
         ),
       },
       ...params.historial
@@ -422,8 +424,11 @@ export async function runAgentTurnGemini(
 
     const systemInstruction = buildSystemPromptConBorrador(
       params.negocio,
-      params.pedidoBorrador
+      params.pedidoBorrador,
+      params.menu
     );
+    /*console.log("SISTEMA DE INSTRUCCIONES");
+    console.log(systemInstruction);*/
 
     const geminiTools = [
       {
@@ -744,9 +749,12 @@ El sistema hará JSON.parse() de tu respuesta. Si respondes texto normal, el pro
 
 function buildSystemPromptConBorrador(
   negocio: Negocio,
-  pedidoBorrador: PedidoBorrador
+  pedidoBorrador: PedidoBorrador,
+  menu: string
 ): string {
   return `${buildSystemPrompt(negocio)}
+
+  ${menu}
 
 ${buildPedidoBorradorContext(pedidoBorrador)}`;
 }

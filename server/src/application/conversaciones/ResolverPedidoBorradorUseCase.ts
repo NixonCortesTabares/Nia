@@ -10,13 +10,13 @@ export async function resolverPedidoBorradorUseCase(
   negocioId: string
 ): Promise<
   | {
-      ok: true;
-      pedidoBorrador: PedidoBorrador;
-    }
+    ok: true;
+    pedidoBorrador: PedidoBorrador;
+  }
   | {
-      ok: false;
-      mensajeCliente: string;
-    }
+    ok: false;
+    mensajeCliente: string;
+  }
 > {
   if (!pedidoBorrador.items || pedidoBorrador.items.length === 0) {
     return {
@@ -39,16 +39,36 @@ export async function resolverPedidoBorradorUseCase(
   const itemsResueltos: PedidoBorradorItem[] = [];
 
   for (const item of pedidoBorrador.items) {
-    const productoEncontrado = await resolvedor.resolverProductoPorTexto(
+
+    const textoParaResolverProducto = [
+      item.nombre_producto,
+      ...(item.extras ?? []),
+      item.notas ?? "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+    
+    let productoEncontrado = await resolvedor.resolverProductoPorTexto(
       negocioId,
-      item.nombre_producto
+      textoParaResolverProducto
     );
 
+    if(productoEncontrado){
+      item.extras = [];
+    }
+    
     if (!productoEncontrado) {
+      productoEncontrado = await resolvedor.resolverProductoPorTexto(
+        negocioId,
+        item.nombre_producto
+      );
+
+      if (!productoEncontrado) {
       return {
         ok: false,
         mensajeCliente: `corazon no le entendi, ${item.nombre_producto}" no esta en el menú. Tal vez leyó mal.`,
       };
+    }
     }
 
     if (typeof productoEncontrado === "string") {
@@ -86,6 +106,7 @@ export async function resolverPedidoBorradorUseCase(
     }
 
     itemsResueltos.push({
+      codigo_producto: item.codigo_producto,
       nombre_producto: productoEncontrado.nombre,
       cantidad: item.cantidad,
       extras: extrasResueltos,

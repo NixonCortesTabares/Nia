@@ -143,8 +143,8 @@ async function procesarConversacionPendiente(
   }
 
   const menu = ConstruirMenuUseCase(menuBruto);
-  //console.log("MENUUU::::::::");
-  //console.log(menu);
+  console.log("MENUUU::::::::");
+  console.log(menu);
   const respuesta = await runAgentTurn({
     negocio,
     cliente,
