@@ -427,7 +427,7 @@ export async function runAgentTurnGemini(
       params.pedidoBorrador,
       params.menu
     );
-    /*console.log("SISTEMA DE INSTRUCCIONES");
+   /* console.log("SISTEMA DE INSTRUCCIONES");
     console.log(systemInstruction);*/
 
     const geminiTools = [

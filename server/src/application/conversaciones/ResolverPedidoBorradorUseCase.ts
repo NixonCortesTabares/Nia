@@ -40,7 +40,7 @@ export async function resolverPedidoBorradorUseCase(
 
   for (const item of pedidoBorrador.items) {
 
-    const textoParaResolverProducto = [
+   /* const textoParaResolverProducto = [
       item.nombre_producto,
       ...(item.extras ?? []),
       item.notas ?? "",
@@ -55,10 +55,9 @@ export async function resolverPedidoBorradorUseCase(
 
     if(productoEncontrado){
       item.extras = [];
-    }
-    
-    if (!productoEncontrado) {
-      productoEncontrado = await resolvedor.resolverProductoPorTexto(
+    }*/
+      console.log("ITEM INGRESADO POR AGENTE::::", item.nombre_producto);
+      const productoEncontrado = await resolvedor.resolverProductoPorTexto(
         negocioId,
         item.nombre_producto
       );
@@ -69,7 +68,7 @@ export async function resolverPedidoBorradorUseCase(
         mensajeCliente: `corazon no le entendi, ${item.nombre_producto}" no esta en el menú. Tal vez leyó mal.`,
       };
     }
-    }
+    
 
     if (typeof productoEncontrado === "string") {
       return {

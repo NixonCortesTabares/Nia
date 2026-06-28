@@ -441,7 +441,7 @@ function resolverMejorCoincidencia<T extends ItemConNombre>(
 
   const esCoincidenciaFuerte = mejor.puntaje >= 75;
   const hayAmbiguedad =
-    segunda !== undefined && mejor.puntaje - segunda.puntaje <= 8;
+    segunda !== undefined && mejor.puntaje - segunda.puntaje <= 1;
 
   if (esCoincidenciaFuerte && !hayAmbiguedad) {
     return mejor.item;
