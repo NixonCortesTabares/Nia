@@ -2,7 +2,7 @@ export async function descargarMediaWhatsApp(mediaId: string): Promise<{
   buffer: Buffer;
   mimeType: string;
 }> {
-  const token = process.env.META_ACCESS_TOKEN;
+  const token = process.env.WS_TOKEN;
 
   if (!token) {
     throw new Error('META_ACCESS_TOKEN no está configurado.');

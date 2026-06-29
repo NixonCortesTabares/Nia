@@ -6,7 +6,7 @@ import { GetMenuUseCase } from '../menu/GetMenuUseCase';
 import { enviarMensaje } from '../../agent/whatsapp';
 import { pdfwhatsapp } from '../../agent/pdfwhatsapp';
 import { imgwhatsapp } from '../../agent/imgwhatsapp';
-
+const esperar = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 export interface WhatsappData {
     wamid: string,
     from: string,
@@ -30,7 +30,7 @@ export class ProcesarMensajeEntranteUseCase {
             throw new Error('Negocio no encontrado');
         }
 
-        if(!negocio.activo){
+        if (!negocio.activo) {
             throw new Error('Negocio inactivo.');
         }
 
@@ -56,43 +56,46 @@ export class ProcesarMensajeEntranteUseCase {
             });
             conversacionActiva = crearConversacion;
 
-             const menuUseCase = new GetMenuUseCase(this.negocioRepository)
-                 const menu = await menuUseCase.execute(data.phoneId);
-                
-                if(menu){
-                    const caption = `Bienvenido a ${negocio.nombre}! Este es nuestro menú. ¿Qué deseas pedir?`
-                    if(menu.tipomenu === 'link'){
-                        await enviarMensaje(data.from, `Bienvenido a ${negocio.nombre}! Aquí nuestro menú: nia-two.vercel.app/menu/${menu.menu_link}`, data.phoneId);
-                    }
-                    else if(menu.tipomenu === 'pdf'){
-                        await pdfwhatsapp({
-                            phoneId: data.phoneId,
-                            to: data.from,
-                            documentUrl: menu.menupdf,
-                            filename: `menu-${negocio.nombre}.pdf`,
-                            caption: caption
-                        });
-                    }
-                    else if(menu.tipomenu === 'foto'){
+            const menuUseCase = new GetMenuUseCase(this.negocioRepository)
+            const menu = await menuUseCase.execute(data.phoneId);
+
+            if (menu) {
+                const caption = `Bienvenido a ${negocio.nombre}! Este es nuestro menú. ¿Qué deseas pedir?`
+                if (menu.tipomenu === 'link') {
+                    await enviarMensaje(data.from, `Bienvenido a ${negocio.nombre}! Aquí nuestro menú: nia-two.vercel.app/menu/${menu.menu_link}`, data.phoneId);
+                }
+                else if (menu.tipomenu === 'pdf') {
+                    await pdfwhatsapp({
+                        phoneId: data.phoneId,
+                        to: data.from,
+                        documentUrl: menu.menupdf,
+                        filename: `menu-${negocio.nombre}.pdf`,
+                        caption: caption
+                    });
+                }
+                else if (menu.tipomenu === 'foto') {
+                    const fotosMenu = [
+                        'https://res.cloudinary.com/dprp8axew/image/upload/v1782577355/WhatsApp_Image_2026-06-27_at_11.17.40_yl0ntx.jpg',
+                        'https://res.cloudinary.com/dprp8axew/image/upload/v1782577360/WhatsApp_Image_2026-06-27_at_11.17.40_1_pmihj8.jpg',
+                        'https://res.cloudinary.com/dprp8axew/image/upload/v1782577367/WhatsApp_Image_2026-06-27_at_11.17.40_2_cu45q4.jpg',
+                    ];
+
+                    for (const imageUrl of fotosMenu) {
                         await imgwhatsapp({
                             phoneId: data.phoneId,
                             to: data.from,
-                            imageUrl: 'https://res.cloudinary.com/dprp8axew/image/upload/v1782577355/WhatsApp_Image_2026-06-27_at_11.17.40_yl0ntx.jpg',
-                        });
-                        await imgwhatsapp({
-                            phoneId: data.phoneId,
-                            to: data.from,
-                            imageUrl: 'https://res.cloudinary.com/dprp8axew/image/upload/v1782577360/WhatsApp_Image_2026-06-27_at_11.17.40_1_pmihj8.jpg',
-                        });
-                        await imgwhatsapp({
-                            phoneId: data.phoneId,
-                            to: data.from,
-                            imageUrl: 'https://res.cloudinary.com/dprp8axew/image/upload/v1782577367/WhatsApp_Image_2026-06-27_at_11.17.40_2_cu45q4.jpg',
+                            imageUrl,
                         });
 
+                        // Pequeña pausa para evitar que WhatsApp entregue las fotos fuera de orden.
+                        await esperar(800);
                     }
+
+                    // Pausa extra antes de que el webhook envíe el saludo automático.
+                    await esperar(2500);
                 }
-             
+            }
+
         }
 
         const conversacionActualizada = await this.conversacionRepository.actualizar(conversacionActiva.id, {
@@ -102,8 +105,6 @@ export class ProcesarMensajeEntranteUseCase {
         if (conversacionActualizada) {
             conversacionActiva = conversacionActualizada;
         }
-
-        
 
         const guardarMensaje = await this.mensajeRepository.crear({
             conversacionId: conversacionActiva.id,

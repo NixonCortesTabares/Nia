@@ -95,12 +95,12 @@ async function procesarConversacionPendiente(
   conversacionId: string
 ): Promise<void> {
   const conversacion = await conversacionRepo.buscarPorId(conversacionId);
-  
+
   if (!conversacion) {
     return;
   }
 
-  const pedidoBorrador:PedidoBorrador = conversacion.pedidoBorrador;
+  const pedidoBorrador: PedidoBorrador = conversacion.pedidoBorrador;
 
   if (conversacion.estado !== "activa") {
     await conversacionRepo.limpiarRespuestaPendiente(conversacion.id);
@@ -120,7 +120,7 @@ async function procesarConversacionPendiente(
     return;
   }
 
-  if(negocio.activo === false){
+  if (negocio.activo === false) {
     await conversacionRepo.limpiarRespuestaPendiente(conversacion.id);
     return;
   }
@@ -134,13 +134,25 @@ async function procesarConversacionPendiente(
     return;
   }
 
+  if (ultimoMensajeCliente.tipo !== 'texto') {
+    await conversacionRepo.marcarProcesadaHastaMensaje(
+      conversacion.id,
+      ultimoMensajeCliente.id
+    );
+    console.log(
+      'Último mensaje del cliente no es texto. El agente no lo procesa:',
+      ultimoMensajeCliente.tipo
+    );
+    return;
+  }
+
   const historial = (await mensajeRepo.buscarPorConversacion(conversacion.id, negocio.id))
     .filter((mensaje) => mensaje.tipo === 'texto')
     .slice(-4);
 
   const menuBruto = await productoRepo.buscarMenuActivoPorNegocio(negocio.id);
 
-  if(!menuBruto){
+  if (!menuBruto) {
     throw new Error('El negocio no tiene un menu consstruido para el agente');
   }
 
@@ -162,13 +174,13 @@ async function procesarConversacionPendiente(
     console.log(respuesta)
 
     await conversacionRepo.actualizarPedidoBorrador(
-    conversacion.id,
-    respuesta.pedidoBorrador
-  );
+      conversacion.id,
+      respuesta.pedidoBorrador
+    );
 
-  if(!negocio.telefonoWs){
-    throw new Error('Este negocio no tiene id del numero del whatsapp')
-  }
+    if (!negocio.telefonoWs) {
+      throw new Error('Este negocio no tiene id del numero del whatsapp')
+    }
     const wamidRta = await enviarMensaje(cliente.telefono, respuesta.mensajeCliente, negocio.telefonoWs);
 
     await mensajeRepo.crear({
