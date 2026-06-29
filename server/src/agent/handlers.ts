@@ -130,8 +130,9 @@ Método de pago: ${pedidoGenerado.pedido.metodoPago}
 Dirección: ${pedidoGenerado.pedido.direccionEntrega ?? 'No aplica'}
 
 Productos:
-    ${resumenItems}
+${resumenItems}
 El domicilio tiene un valor de $${pedidoGenerado.pedido.costoDomicilio}
+adicional de $1000 pesos por pedido para llevar
 Total: $${pedidoGenerado.total}
                 
 *No olvides mandar pantallazo de la transferencia para poder empezar a realizar el pedido*
@@ -153,6 +154,7 @@ Dirección: ${pedidoGenerado.pedido.direccionEntrega ?? 'No aplica'}
 Productos:
   ${resumenItems}
 El domicilio tiene un valor de $${pedidoGenerado.pedido.costoDomicilio}
+adicional de $1000 pesos por pedido para llevar
 Total: $${pedidoGenerado.total}.
 *Por temas de organización y sistema, tienes 3 minutos en caso de que quieras modificar tu pedido.*`
                 };

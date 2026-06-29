@@ -17,6 +17,7 @@ export interface MenuProductoRow {
   codigoMenu: number;
   categoriaNombre: string;
   productoNombre: string;
+  valor: number;
 }
 
 function mapProducto(row: ProductoRow): Producto {
@@ -83,12 +84,14 @@ export class ProductoRepository implements IProductoRepository {
       categoria_nombre: string;
       producto_nombre: string;
       codigo_menu: string;
+      valor: string | number
     }>(
       `
     SELECT
       c.nombre AS categoria_nombre,
       p.nombre AS producto_nombre,
-      p.codigo_menu
+      p.codigo_menu,
+      p.valor
     FROM productos p
     INNER JOIN categorias c
       ON c.id = p.categoria_id
@@ -106,7 +109,8 @@ export class ProductoRepository implements IProductoRepository {
     return result.rows.map((row) => ({
       categoriaNombre: row.categoria_nombre,
       productoNombre: row.producto_nombre,
-      codigoMenu: Number(row.codigo_menu)
+      codigoMenu: Number(row.codigo_menu),
+      valor: Number(row.valor)
     }));
   }
 

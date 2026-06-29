@@ -168,7 +168,8 @@ export class PrepararPedidoService {
     }
 
     const totalProductos = productos.reduce((total, item) => total + item.subtotal, 0);
-    const total = totalProductos + costoDomicilio;
+    const adicional = 1000; //CODIGO PENDIENTE LOL
+    const total = totalProductos + costoDomicilio + adicional;
 
     return ({
       pedido: {
