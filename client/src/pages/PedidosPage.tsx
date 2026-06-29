@@ -71,6 +71,7 @@ function formatCurrency(value: number) {
 
 function formatDateTime(fechaIso: string) {
   return new Date(fechaIso).toLocaleString('es-CO', {
+    timeZone: 'America/Bogota',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',

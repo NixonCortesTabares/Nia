@@ -60,11 +60,11 @@ function formatCurrency(value: number) {
 
 function formatHora(fechaIso: string) {
   return new Date(fechaIso).toLocaleTimeString('es-CO', {
+    timeZone: 'America/Bogota',
     hour: '2-digit',
     minute: '2-digit',
   });
 }
-
 export function DashboardPage() {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(true);
