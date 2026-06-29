@@ -78,18 +78,6 @@ export async function ejecutarHerramienta(nombre: string, input: any,
             const negocioRepo = new NegocioRepository();
             const negocio = await negocioRepo.buscarPorId(negocioId);
 
-            if (!negocio) {
-                return { ok: false, mensaje: 'No se pudo encontrar el negocio.' };
-            }
-
-            if (!textoValido(negocio.numtel)) {
-                return { ok: false, mensaje: 'El negocio no tiene un número de teléfono configurado.' };
-            }
-
-            if (!textoValido(negocio.telefonoWs)) {
-                return { ok: false, mensaje: 'El negocio no tiene un id de WhatsApp configurado.' };
-            }
-
             const pedidoService = new PrepararPedidoService(productoRepo, extraRepo, categoriaExtraRepo, negocioRepo);
             const clienteRepo = new ClienteRepository();
             const generarPedidoUseCase = new GenerarPedidoUseCase(
@@ -131,22 +119,6 @@ export async function ejecutarHerramienta(nombre: string, input: any,
                 })
                 .join('\n');
 
-            const resumenNegocio = `*Nuevo pedido #${pedidoGenerado.pedido.id}*
-
-Cliente: ${pedidoGenerado.pedido.nombreCliente}
-Teléfono: ${pedidoGenerado.pedido.telefonoCliente}
-Tipo de entrega: ${pedidoGenerado.pedido.tipoEntrega}
-Dirección: ${pedidoGenerado.pedido.direccionEntrega ?? 'No aplica'}
-Método de pago: ${pedidoGenerado.pedido.metodoPago}
-
-Productos:
-${resumenItems}
-
-Domicilio: $${pedidoGenerado.pedido.costoDomicilio}
-Total: $${pedidoGenerado.total}
-Notas: ${pedidoGenerado.pedido.notas ?? 'Sin notas'}`;
-
-            //await enviarMensaje(negocio.numtel, resumenNegocio, negocio.telefonoWs);
             if (pedidoGenerado.pedido.metodoPago === 'transferencia') {
                 return {
                     ok: true, mensaje:
