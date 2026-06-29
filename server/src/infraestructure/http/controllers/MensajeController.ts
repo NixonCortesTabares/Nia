@@ -10,9 +10,15 @@ import { Mensaje } from '../../../domain/entities/Mensaje';
 function mapMensajeResponse(mensaje: Mensaje) {
   return {
     id: mensaje.id,
+    negocioId: mensaje.negocioId,
     conversacionId: mensaje.conversacionId,
     origen: mensaje.rol,
     contenido: mensaje.contenido,
+    tipo: mensaje.tipo,
+    mediaId: mensaje.mediaId,
+    mediaUrl: mensaje.mediaUrl,
+    mimeType: mensaje.mimeType,
+    caption: mensaje.caption,
     creadoEn: mensaje.enviadoEn,
   };
 }

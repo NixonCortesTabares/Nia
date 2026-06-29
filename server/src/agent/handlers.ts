@@ -14,6 +14,7 @@ import { CategoriaExtraRepository } from "../infraestructure/repositories/Catego
 import { PrepararPedidoService } from "../application/pedidos/services/PrepararPedidoService";
 import { ModificarOCancelarPedidoUseCase } from "../application/pedidos/ModificarOCancelarPedidoUseCase";
 import { ClienteRepository } from "../infraestructure/repositories/ClienteRepository";
+import { enviarMensaje } from "./whatsapp";
 
 function textoValido(valor: unknown): valor is string {
     return typeof valor === 'string' && valor.trim().length > 0;
@@ -120,6 +121,9 @@ export async function ejecutarHerramienta(nombre: string, input: any,
 
 
             if (pedidoGenerado.pedido.metodoPago === 'transferencia') {
+                if(negocio?.telefonoWs){
+                    await enviarMensaje('573183551027',"prueba", negocio?.telefonoWs);
+                }       
                 return {
                     ok: true, mensaje:
 `Ya tenemos tu pedido.

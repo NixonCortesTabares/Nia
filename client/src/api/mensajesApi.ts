@@ -1,12 +1,19 @@
 import { apiClient } from './apiClient';
 
+export type MensajeTipo = 'texto' | 'imagen' | 'documento';
+
 export interface MensajeConversacion {
   id: string;
+  negocioId?: string;
   conversacionId: string;
   origen: string;
   contenido: string;
   creadoEn: string;
-  tipo?: string;
+  tipo?: MensajeTipo;
+  mediaId?: string | null;
+  mediaUrl?: string | null;
+  mimeType?: string | null;
+  caption?: string | null;
 }
 
 export async function obtenerMensajesConversacion(conversacionId: string) {

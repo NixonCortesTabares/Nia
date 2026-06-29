@@ -134,7 +134,9 @@ async function procesarConversacionPendiente(
     return;
   }
 
-  const historial = (await mensajeRepo.buscarPorConversacion(conversacion.id, negocio.id)).slice(-4);
+  const historial = (await mensajeRepo.buscarPorConversacion(conversacion.id, negocio.id))
+    .filter((mensaje) => mensaje.tipo === 'texto')
+    .slice(-4);
 
   const menuBruto = await productoRepo.buscarMenuActivoPorNegocio(negocio.id);
 

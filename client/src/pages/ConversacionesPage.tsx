@@ -258,7 +258,33 @@ export function ConversacionesPage() {
                   key={mensaje.id}
                   className={`message-bubble ${mensaje.origen === 'cliente' ? 'incoming' : 'outgoing'}`}
                 >
-                  <p>{mensaje.contenido}</p>
+                  {mensaje.tipo === 'imagen' && mensaje.mediaUrl ? (
+                    <a href={mensaje.mediaUrl} target="_blank" rel="noreferrer">
+                      <img
+                        src={mensaje.mediaUrl}
+                        alt="Comprobante de transferencia"
+                        className="max-w-xs rounded-lg border object-cover"
+                      />
+                    </a>
+                  ) : null}
+                  {mensaje.tipo === 'documento' && mensaje.mediaUrl ? (
+                    <a
+                      href={mensaje.mediaUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex rounded-md border px-3 py-2 text-sm font-medium hover:bg-gray-50"
+                    >
+                      Ver comprobante adjunto
+                    </a>
+                  ) : null}
+                  {(mensaje.tipo === 'imagen' || mensaje.tipo === 'documento') && !mensaje.mediaUrl ? (
+                    <p className="text-sm text-red-600">
+                      El cliente envio un archivo, pero no se pudo cargar.
+                    </p>
+                  ) : null}
+                  {mensaje.tipo === 'texto' || !mensaje.tipo || mensaje.mediaUrl ? (
+                    <p>{mensaje.caption ?? mensaje.contenido}</p>
+                  ) : null}
                   <small>{formatFecha(mensaje.creadoEn)}</small>
                 </div>
               ))}

@@ -12,6 +12,11 @@ export interface WhatsappData {
     from: string,
     text: string,
     phoneId: string,
+    tipo?: 'texto' | 'imagen' | 'documento',
+    mediaId?: string | null,
+    mediaUrl?: string | null,
+    mimeType?: string | null,
+    caption?: string | null,
 }
 export class ProcesarMensajeEntranteUseCase {
     constructor(private negocioRepository: INegocioRepository,
@@ -104,7 +109,12 @@ export class ProcesarMensajeEntranteUseCase {
             conversacionId: conversacionActiva.id,
             rol: 'cliente',
             contenido: data.text,
-            wamid: data.wamid
+            wamid: data.wamid,
+            tipo: data.tipo,
+            mediaId: data.mediaId,
+            mediaUrl: data.mediaUrl,
+            mimeType: data.mimeType,
+            caption: data.caption,
         }, negocio.id);
 
         return {

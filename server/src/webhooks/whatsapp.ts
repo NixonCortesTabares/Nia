@@ -10,6 +10,8 @@ import { enviarMensaje } from '../agent/whatsapp';
 import { verificarFirmaMeta } from './verificarFirmaMeta';
 import { clienteWhatsappRateLimiter } from '../infraestructure/security/ratelimite';
 import { GetMenuUseCase } from '../application/menu/GetMenuUseCase';
+import { descargarMediaWhatsApp } from '../application/services/whatsappMedia.service';
+import { subirBufferACloudinary } from '../application/services/cloudinaryUpload.service';
 
 interface WhatsAppTextMessage {
   id: string;
@@ -21,12 +23,42 @@ interface WhatsAppTextMessage {
   };
 }
 
+interface WhatsAppImageMessage {
+  id: string;
+  from: string;
+  timestamp: string;
+  type: 'image';
+  image: {
+    id: string;
+    caption?: string;
+    mime_type?: string;
+  };
+}
+
+interface WhatsAppDocumentMessage {
+  id: string;
+  from: string;
+  timestamp: string;
+  type: 'document';
+  document: {
+    id: string;
+    caption?: string;
+    filename?: string;
+    mime_type?: string;
+  };
+}
+
+type WhatsAppMessage =
+  | WhatsAppTextMessage
+  | WhatsAppImageMessage
+  | WhatsAppDocumentMessage;
+
 interface WhatsAppWebhookBody {
   object: 'whatsapp_business_account' | string;
   entry?: Array<{
     changes?: Array<{
       value?: {
-        messages?: WhatsAppTextMessage[];
+        messages?: WhatsAppMessage[];
         metadata?: {
           phone_number_id: string;
           display_phone_number: string;
@@ -83,7 +115,7 @@ router.post('/', async (req, res) => {
     const value = body.entry?.[0]?.changes?.[0]?.value;
     const message = value?.messages?.[0];
     //console.log(value);
-    if (!message || message.type !== 'text') {
+    if (!message) {
       return;
     }
 
@@ -93,7 +125,6 @@ router.post('/', async (req, res) => {
 
     const wamid = message.id;
     const from = message.from;
-    const text = message.text.body;
     const phoneId = value.metadata.phone_number_id;
 
 
@@ -126,6 +157,67 @@ router.post('/', async (req, res) => {
       mensajeRepo,
       clienteRepo
     );
+
+    if (message.type === 'image' || message.type === 'document') {
+      const negocio = await negocioRepo.buscarPorTelefonoWs(phoneId);
+
+      if (!negocio || !negocio.activo) {
+        return;
+      }
+
+      const esImagen = message.type === 'image';
+      const mediaId = esImagen ? message.image.id : message.document.id;
+      const caption = (esImagen ? message.image.caption : message.document.caption) ?? null;
+      const filename = esImagen ? null : message.document.filename ?? 'documento';
+      let mediaUrl: string | null = null;
+      let mimeType: string | null = null;
+      let falloMedia = false;
+
+      try {
+        const media = await descargarMediaWhatsApp(mediaId);
+        mimeType = media.mimeType;
+        mediaUrl = await subirBufferACloudinary({
+          buffer: media.buffer,
+          folder: `nia/comprobantes/${negocio.id}`,
+          resourceType: esImagen ? 'image' : 'auto',
+        });
+      } catch (error) {
+        falloMedia = true;
+        console.error('Error procesando media de WhatsApp:', error);
+      }
+
+      const contenido = falloMedia
+        ? '[El cliente envió un archivo, pero no se pudo procesar automáticamente]'
+        : caption ?? (esImagen
+          ? '[Comprobante de transferencia]'
+          : `[Documento recibido: ${filename}]`);
+
+      await mensajeEntrante.execute({
+        wamid,
+        from,
+        text: contenido,
+        phoneId,
+        tipo: esImagen ? 'imagen' : 'documento',
+        mediaId,
+        mediaUrl,
+        mimeType,
+        caption,
+      });
+
+      const respuesta = falloMedia
+        ? 'Recibimos tu archivo, pero tuvimos un problema procesándolo. Por favor envíalo nuevamente o espera a que el restaurante te contacte.'
+        : 'Recibimos tu comprobante. Un momento lo revisamos.';
+
+      try {
+        await enviarMensaje(from, respuesta, phoneId);
+      } catch (error) {
+        console.error('Error enviando confirmación de media por WhatsApp:', error);
+      }
+
+      return;
+    }
+
+    const text = message.text.body;
 
     //Busca al negocio, crea al cliente, crea la conversacion, y guarda el mensaje del cliente
     const resultado = await mensajeEntrante.execute({
