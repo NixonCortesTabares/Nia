@@ -146,10 +146,7 @@ Domicilio: $${pedidoGenerado.pedido.costoDomicilio}
 Total: $${pedidoGenerado.total}
 Notas: ${pedidoGenerado.pedido.notas ?? 'Sin notas'}`;
 
-            await enviarMensaje(negocio.numtel, resumenNegocio, negocio.telefonoWs);
-
-
-
+            //await enviarMensaje(negocio.numtel, resumenNegocio, negocio.telefonoWs);
             if (pedidoGenerado.pedido.metodoPago === 'transferencia') {
                 return {
                     ok: true, mensaje:
