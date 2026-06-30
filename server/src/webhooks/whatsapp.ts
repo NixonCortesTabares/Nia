@@ -267,7 +267,7 @@ router.post('/', async (req, res) => {
     }
     await conversacionRepo.marcarRespuestaPendiente(
       resultado.conversacion.id,
-      2500
+      4500
     );
 
     console.log(
