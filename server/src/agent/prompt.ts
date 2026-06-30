@@ -12,7 +12,7 @@ Información del negocio:
 - Tipo: ${negocio.tipo}
 - Ciudad: ${negocio.ciudad}
 - Dirección: ${negocio.direccion}
-- Fecha actual en Colombia: ${fechaActual.texto} (${fechaActual.iso})
+- Fecha actual en Colombia:${fechaActual.fechaHoraTexto}
 
 TU ROL
 
@@ -268,7 +268,16 @@ REGLAS IMPORTANTES PARA MODIFICAR O CANCELAR
 `;
 }
 
-function getFechaActualColombia(): { texto: string; iso: string } {
+export function getFechaActualColombia(): {
+  texto: string;
+  iso: string;
+  hora: string;
+  hora24: string;
+  fechaHoraTexto: string;
+  diaMes: string;
+  diaSemana: number;
+  minutosActuales: number;
+} {
   const now = new Date();
 
   const texto = new Intl.DateTimeFormat("es-CO", {
@@ -279,18 +288,70 @@ function getFechaActualColombia(): { texto: string; iso: string } {
     day: "numeric",
   }).format(now);
 
-  const parts = new Intl.DateTimeFormat("en-CA", {
+  const hora = new Intl.DateTimeFormat("es-CO", {
+    timeZone: "America/Bogota",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(now);
+
+  const partsFecha = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Bogota",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
   }).formatToParts(now);
 
-  const year = parts.find((part) => part.type === "year")?.value;
-  const month = parts.find((part) => part.type === "month")?.value;
-  const day = parts.find((part) => part.type === "day")?.value;
+  const year = partsFecha.find((part) => part.type === "year")?.value;
+  const month = partsFecha.find((part) => part.type === "month")?.value;
+  const day = partsFecha.find((part) => part.type === "day")?.value;
+
+  const partsHora = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Bogota",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now);
+
+  const weekday = partsHora.find((part) => part.type === "weekday")?.value;
+  const hour = partsHora.find((part) => part.type === "hour")?.value;
+  const minute = partsHora.find((part) => part.type === "minute")?.value;
+
+  const mapaDias: Record<string, number> = {
+    Sun: 0,
+    Mon: 1,
+    Tue: 2,
+    Wed: 3,
+    Thu: 4,
+    Fri: 5,
+    Sat: 6,
+  };
+
+  if (!year || !month || !day || !weekday || !hour || !minute) {
+    throw new Error("No se pudo obtener la fecha y hora actual de Colombia.");
+  }
+
+  const diaSemana = mapaDias[weekday];
+
+  if (diaSemana === undefined) {
+    throw new Error("No se pudo calcular el día de la semana en Colombia.");
+  }
+
+  const hora24 = `${hour}:${minute}`;
+  const minutosActuales = Number(hour) * 60 + Number(minute);
 
   const iso = `${year}-${month}-${day}`;
+  const fechaHoraTexto = `${texto}, ${hora}`;
 
-  return { texto, iso };
+  return {
+    texto,
+    iso,
+    hora,
+    hora24,
+    fechaHoraTexto,
+    diaMes: day,
+    diaSemana,
+    minutosActuales,
+  };
 }

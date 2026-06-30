@@ -12,6 +12,8 @@ import { clienteWhatsappRateLimiter } from '../infraestructure/security/ratelimi
 import { GetMenuUseCase } from '../application/menu/GetMenuUseCase';
 import { descargarMediaWhatsApp } from '../application/services/whatsappMedia.service';
 import { subirBufferACloudinary } from '../application/services/cloudinaryUpload.service';
+import { HorarioAtencionRepository } from '../infraestructure/repositories/HorarioAtencionRepository';
+import { VerificarHorarioEnServicioUseCase } from '../application/negocios/VerificarHorarioEnServicioUseCase';
 
 interface WhatsAppTextMessage {
   id: string;
@@ -150,7 +152,7 @@ router.post('/', async (req, res) => {
     const conversacionRepo = new ConversacionRepository();
     const mensajeRepo = new MensajeRepository();
     const clienteRepo = new ClienteRepository();
-
+    const horarioRepo = new HorarioAtencionRepository();
     const mensajeEntrante = new ProcesarMensajeEntranteUseCase(
       negocioRepo,
       conversacionRepo,
@@ -158,13 +160,19 @@ router.post('/', async (req, res) => {
       clienteRepo
     );
 
+
     if (message.type === 'image' || message.type === 'document') {
       const negocio = await negocioRepo.buscarPorTelefonoWs(phoneId);
 
       if (!negocio || !negocio.activo) {
         return;
       }
-
+      const horarioEnServUseCase = new VerificarHorarioEnServicioUseCase(horarioRepo);
+      const verificarHorario = await horarioEnServUseCase.execute(negocio.id);
+      if(!verificarHorario){
+        await enviarMensaje(from, "Por el momento no tenemos servicio.", phoneId);
+        return
+      }
       const esImagen = message.type === 'image';
       const mediaId = esImagen ? message.image.id : message.document.id;
       const caption = (esImagen ? message.image.caption : message.document.caption) ?? null;
@@ -224,7 +232,7 @@ router.post('/', async (req, res) => {
         phoneId,
         tipo: message.type,
       });
-
+      await enviarMensaje(from, "Ahora no puedo escuchar audios, podrias escribirme por favor?", phoneId);
       return;
     }
 
