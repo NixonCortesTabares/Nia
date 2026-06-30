@@ -217,6 +217,17 @@ router.post('/', async (req, res) => {
       return;
     }
 
+    if (!('text' in message) || !message.text?.body) {
+      console.log('Mensaje de WhatsApp ignorado porque no es texto, imagen ni documento:', {
+        wamid,
+        from,
+        phoneId,
+        tipo: message.type,
+      });
+
+      return;
+    }
+
     const text = message.text.body;
 
     //Busca al negocio, crea al cliente, crea la conversacion, y guarda el mensaje del cliente
