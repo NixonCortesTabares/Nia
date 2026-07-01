@@ -46,7 +46,7 @@ export class LoginUseCase {
         rol: usuario.rol,
       },
       jwtSecret,
-      { expiresIn: '8h' }
+      { expiresIn: '20h' }
     );
 
     return {

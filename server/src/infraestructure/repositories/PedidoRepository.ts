@@ -26,7 +26,7 @@ interface PedidoRow {
   tipo_entrega: TipoEntrega;
   direccion_entrega: string | null;
   metodo_pago: metodoPago;
-  costo_domicilio: number;
+  costo_domicilio: string;
   total: number;
   estado: EstadoPedido;
   notas: string | null;
@@ -286,7 +286,7 @@ export class PedidoRepository implements IPedidoRepository {
         direccionEntrega: row.direccion_entrega,
         metodoPago: row.metodo_pago,
         total: Number(row.total),
-        costoDomicilio: Number(row.costo_domicilio ?? 0),
+        costoDomicilio: row.costo_domicilio,
         creadoEn: row.creado_en,
         cliente: {
           nombre: row.cliente_nombre,

@@ -12,7 +12,7 @@ interface NegocioRow {
   activo: boolean;
   creado_en: Date;
   menu_link:string;
-  costo_domicilio: number;
+  costo_domicilio: string;
   numtel: string;
   menupdf: string;
   menufoto: string;

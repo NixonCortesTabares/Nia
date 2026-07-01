@@ -8,7 +8,7 @@ export interface Negocio {
   activo: boolean;
   creadoEn: Date;
   menu_link:string;
-  costo_domicilio: number;
+  costo_domicilio: string;
   numtel: string
   menupdf: string;
   menufoto: string;

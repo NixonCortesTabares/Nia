@@ -442,7 +442,7 @@ export async function runAgentTurnGemini(
       contents,
       config: {
         systemInstruction,
-        maxOutputTokens: 2048,
+        maxOutputTokens: 4096,
         tools: geminiTools,
         toolConfig: {
           functionCallingConfig: {
@@ -452,8 +452,6 @@ export async function runAgentTurnGemini(
       },
     });
 
-    //console.log("Gemini usage: AQUI AQUI", response.usageMetadata);
-
     const functionCalls = response.functionCalls ?? [];
 
     console.log("Gemini tuvo function calls:", functionCalls.length > 0);
@@ -461,6 +459,7 @@ export async function runAgentTurnGemini(
 
     // Caso 1: no usó tool, entonces debe responder JSON estructurado
     if (functionCalls.length === 0) {
+
       const finalText = response.text?.trim();
 
       if (!finalText) {
@@ -469,7 +468,6 @@ export async function runAgentTurnGemini(
           pedidoBorrador: params.pedidoBorrador,
         };
       }
-
 
       const respuestaAgente = parseAgentStructuredResponse(finalText, params.pedidoBorrador);
 
@@ -581,7 +579,7 @@ Responde en el formato JSON estructurado obligatorio:
       contents: contentsSinTools,
       config: {
         systemInstruction,
-        maxOutputTokens: 1500,
+        maxOutputTokens: 4096,
         toolConfig: {
           functionCallingConfig: {
             mode: FunctionCallingConfigMode.NONE,

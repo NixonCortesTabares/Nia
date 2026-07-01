@@ -66,15 +66,9 @@ export class PrepararPedidoService {
       throw new Error('La direccion de entrega es obligatoria para domicilio');
     }
 
-
     const negocio = await this.negocioRepo.buscarPorId(input.negocioId);
     if(!negocio){
       throw new Error('No se pudo encontrar el negocio al intentar preparar el pedido');
-    }
-    let costoDomicilio= 0;
-    
-    if(tipoEntregaNormalizado === 'domicilio'){
-      costoDomicilio = negocio?.costo_domicilio;
     }
     
     const productos: CrearPedidoProductoCompletoDTO[] = [];
@@ -166,10 +160,10 @@ export class PrepararPedidoService {
         extras,
       });
     }
-
+    const costoDomicilio = negocio.costo_domicilio
     const totalProductos = productos.reduce((total, item) => total + item.subtotal, 0);
     const adicional = 1000; //CODIGO PENDIENTE LOL
-    const total = totalProductos + costoDomicilio + adicional;
+    const total = totalProductos + adicional;
 
     return ({
       pedido: {

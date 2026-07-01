@@ -14,7 +14,7 @@ export interface Pedido{
     direccionEntrega: string | null,
     metodoPago: metodoPago,
 
-    costoDomicilio: number,
+    costoDomicilio: string,
     total: number,
     estado: EstadoPedido,
     notas: string | null,
@@ -32,7 +32,7 @@ export interface CrearPedidoDTO{
     direccionEntrega: string | null,
     metodoPago: metodoPago,
     
-    costoDomicilio: number,
+    costoDomicilio: string,
     total: number,
     notas: string | null
 
@@ -45,7 +45,7 @@ export interface ActualizarPedidoDTO{
     direccionEntrega?: string | null,
     metodoPago?: metodoPago,
 
-    costoDomicilio?: number
+    costoDomicilio?: string
     total?: number,
     estado?: EstadoPedido,
     notas?: string | null
