@@ -267,7 +267,7 @@ function OrderCard({
 
         <InfoLine
           label="Costo domicilio"
-          value={formatCurrency(pedido.costoDomicilio ?? 0)}
+          value={pedido.costoDomicilio}
         />
 
         <InfoLine

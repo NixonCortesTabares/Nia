@@ -23,7 +23,7 @@ export interface Pedido {
   direccionEntrega?: string | null;
   metodoPago?: string | null;
   total: number;
-  costoDomicilio: number;
+  costoDomicilio: string;
   creadoEn: string;
   cliente?: {
     nombre: string | null;
