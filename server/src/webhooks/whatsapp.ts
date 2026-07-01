@@ -159,20 +159,19 @@ router.post('/', async (req, res) => {
       mensajeRepo,
       clienteRepo
     );
-
-
-    if (message.type === 'image' || message.type === 'document') {
-      const negocio = await negocioRepo.buscarPorTelefonoWs(phoneId);
-
-      if (!negocio || !negocio.activo) {
+    const negocio = await negocioRepo.buscarPorTelefonoWs(phoneId);
+    const horarioEnServUseCase = new VerificarHorarioEnServicioUseCase(horarioRepo);
+     if (!negocio || !negocio.activo) {
         return;
       }
-      const horarioEnServUseCase = new VerificarHorarioEnServicioUseCase(horarioRepo);
       const verificarHorario = await horarioEnServUseCase.execute(negocio.id);
-      if(!verificarHorario){
+      console.log(verificarHorario);
+      if (!verificarHorario) {
         await enviarMensaje(from, "Por el momento no tenemos servicio.", phoneId);
         return
       }
+    if (message.type === 'image' || message.type === 'document') {
+
       const esImagen = message.type === 'image';
       const mediaId = esImagen ? message.image.id : message.document.id;
       const caption = (esImagen ? message.image.caption : message.document.caption) ?? null;
