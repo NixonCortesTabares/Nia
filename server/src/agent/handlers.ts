@@ -123,11 +123,12 @@ export async function ejecutarHerramienta(nombre: string, input: any,
                 return {
                     ok: true, mensaje:
                         `Ya registré  tu pedido.
-Dirección: ${pedidoGenerado.pedido.direccionEntrega ?? 'No aplica'}
-
+ ${pedidoGenerado.pedido.direccionEntrega ?? 'En el local'}
+${pedidoGenerado.pedido.nombreCliente}
+${pedidoGenerado.pedido.telefonoCliente}
 Productos:
 ${resumenItems}
-El domicilio tiene un valor $${pedidoGenerado.pedido.costoDomicilio} 
+El domicilio tiene un valor ${pedidoGenerado.pedido.costoDomicilio} 
 adicional de $1000 pesos por pedido para llevar
 Total: $${pedidoGenerado.total}
                 
@@ -141,11 +142,12 @@ Total: $${pedidoGenerado.total}
                 return {
                     ok: true, mensaje: `
 Ya registré tu pedido.
-Dirección: ${pedidoGenerado.pedido.direccionEntrega ?? 'No aplica'}
-
+${pedidoGenerado.pedido.direccionEntrega ?? 'En el local'}
+${pedidoGenerado.pedido.nombreCliente}
+${pedidoGenerado.pedido.telefonoCliente}
 Productos:
   ${resumenItems}
-El domicilio tiene un valor $${pedidoGenerado.pedido.costoDomicilio}
+El domicilio tiene un valor ${pedidoGenerado.pedido.costoDomicilio}
 adicional de $1000 pesos por pedido para llevar
 Total: $${pedidoGenerado.total}.
 *Nos demoramos entre 25 y 40 minutos*`
