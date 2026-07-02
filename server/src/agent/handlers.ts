@@ -147,6 +147,7 @@ export async function ejecutarHerramienta(nombre: string, input: any,
             }
 
             lineasMensaje.push("");
+            lineasMensaje.push("$1000 adicionales por pedido para llevar.");
             lineasMensaje.push(`Total productos: $${pedidoGenerado.total}`);
 
             if (pedidoGenerado.pedido.metodoPago === "transferencia") {
