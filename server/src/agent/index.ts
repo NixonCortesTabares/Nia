@@ -39,7 +39,19 @@ type AgentTurnParams = {
 export type AgentTurnResult = {
   mensajeCliente: string;
   pedidoBorrador: PedidoBorrador;
+  ok: boolean;
 };
+
+type ParseAgentResult =
+  | {
+      ok: true;
+      data: AgentTurnResult;
+    }
+  | {
+      ok: false;
+      error: string;
+      rawText: string;
+    };
 
 type ClaudeMessage = {
   role: "user" | "assistant";
@@ -119,7 +131,7 @@ export async function runAgentTurnAnthropic(
 
       if (iteraciones >= MAX_ITERACIONES) {
         console.error('Límite de iteraciones alcanzado — posible loop infinito');
-        return { mensajeCliente: "En este momento no puedo completar tu solicitud. Intenta de nuevo.", pedidoBorrador: params.pedidoBorrador, };
+        return { mensajeCliente: "En este momento no puedo completar tu solicitud. Intenta de nuevo.", pedidoBorrador: params.pedidoBorrador, ok: false };
       }
       iteraciones++;
       const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -151,7 +163,7 @@ export async function runAgentTurnAnthropic(
         const textBlock = data.content.find((b) => b.type === "text");
         const text = textBlock?.text ?? "";
 
-        return parseAgentStructuredResponse(text, params.pedidoBorrador);
+        return parseAgentStructuredResponseSinReintentos(text, params.pedidoBorrador);
       }
 
       // Claude quiere usar herramientas
@@ -159,7 +171,7 @@ export async function runAgentTurnAnthropic(
         const toolUseBlocks = data.content.filter(b => b.type === "tool_use");
 
         if (toolUseBlocks.length === 0) {
-          return { mensajeCliente: "No pude procesar tu mensaje en este momento.", pedidoBorrador: params.pedidoBorrador };
+          return { mensajeCliente: "No pude procesar tu mensaje en este momento.", pedidoBorrador: params.pedidoBorrador, ok: false };
         }
 
         // Agregar respuesta del assistant al historial
@@ -200,12 +212,12 @@ export async function runAgentTurnAnthropic(
       }
 
       // Caso inesperado
-      return { mensajeCliente: "No pude procesar tu mensaje en este momento.", pedidoBorrador: params.pedidoBorrador };
+      return { mensajeCliente: "No pude procesar tu mensaje en este momento.", pedidoBorrador: params.pedidoBorrador, ok: false };
     }
 
   } catch (error) {
     console.error("Error en runAgentTurnAnthropic:", error);
-    return { mensajeCliente: "Tuve un problema procesando tu mensaje. Intenta de nuevo.", pedidoBorrador: params.pedidoBorrador };
+    return { mensajeCliente: "Tuve un problema procesando tu mensaje. Intenta de nuevo.", pedidoBorrador: params.pedidoBorrador, ok: false };
   }
 }
 
@@ -266,6 +278,7 @@ export async function runAgentTurnGroq(
       return {
         mensajeCliente: "No pude procesar tu mensaje en este momento.",
         pedidoBorrador: params.pedidoBorrador,
+        ok: false,
       };
     }
 
@@ -283,10 +296,11 @@ export async function runAgentTurnGroq(
         return {
           mensajeCliente: "No pude generar una respuesta final en este momento.",
           pedidoBorrador: params.pedidoBorrador,
+          ok: false,
         };
       }
 
-      return parseAgentStructuredResponse(finalText, params.pedidoBorrador);
+      return parseAgentStructuredResponseSinReintentos(finalText, params.pedidoBorrador);
     }
 
     // Caso 2: si manda más de una tool, solo ejecutamos la primera
@@ -305,6 +319,7 @@ export async function runAgentTurnGroq(
       return {
         mensajeCliente: "No pude procesar esta acción en este momento.",
         pedidoBorrador: params.pedidoBorrador,
+        ok: false,
       };
     }
 
@@ -329,6 +344,7 @@ export async function runAgentTurnGroq(
       return {
         mensajeCliente: resultado.mensaje,
         pedidoBorrador: params.pedidoBorrador,
+        ok: true,
       };
     }
 
@@ -372,16 +388,18 @@ Responde en el formato JSON estructurado obligatorio con mensaje_cliente y pedid
       return {
         mensajeCliente: resultado.mensaje,
         pedidoBorrador: params.pedidoBorrador,
+        ok: false,
       };
     }
 
-    return parseAgentStructuredResponse(textoFinal, params.pedidoBorrador);
+    return parseAgentStructuredResponseSinReintentos(textoFinal, params.pedidoBorrador);
   } catch (error) {
     console.error("Error en runAgentTurnGroq:", error);
 
     return {
       mensajeCliente: "Tuve un problema procesando tu mensaje. Intenta de nuevo.",
       pedidoBorrador: params.pedidoBorrador,
+      ok: false,
     };
   }
 }
@@ -398,6 +416,7 @@ export async function runAgentTurnGemini(
     return {
       mensajeCliente: "El agente no está configurado correctamente.",
       pedidoBorrador: params.pedidoBorrador,
+      ok: false,
     };
   }
 
@@ -427,8 +446,8 @@ export async function runAgentTurnGemini(
       params.pedidoBorrador,
       params.menu
     );
-   /* console.log("SISTEMA DE INSTRUCCIONES");
-    console.log(systemInstruction);*/
+    /* console.log("SISTEMA DE INSTRUCCIONES");
+     console.log(systemInstruction);*/
 
     const geminiTools = [
       {
@@ -466,10 +485,20 @@ export async function runAgentTurnGemini(
         return {
           mensajeCliente: "No pude generar una respuesta final en este momento.",
           pedidoBorrador: params.pedidoBorrador,
+          ok: false,
         };
       }
+      const respuestaAgente = await parsearConTresIntentos({
+        textoInicial: finalText,
+        model,
+        systemInstruction,
+        contents,
+        pedidoBorradorFallback: params.pedidoBorrador,
+      });
 
-      const respuestaAgente = parseAgentStructuredResponse(finalText, params.pedidoBorrador);
+      if (!respuestaAgente.ok) {
+        return respuestaAgente;
+      }
 
       const resultadoResolucion = await resolverPedidoBorradorUseCase(respuestaAgente.pedidoBorrador, params.negocio.id);
 
@@ -477,12 +506,14 @@ export async function runAgentTurnGemini(
         return {
           mensajeCliente: resultadoResolucion.mensajeCliente,
           pedidoBorrador: params.pedidoBorrador,
+          ok: false,
         };
       }
 
       return {
         mensajeCliente: respuestaAgente.mensajeCliente,
         pedidoBorrador: resultadoResolucion.pedidoBorrador,
+        ok: true,
       };
     }
 
@@ -502,6 +533,7 @@ export async function runAgentTurnGemini(
       return {
         mensajeCliente: "No pude procesar esta acción en este momento.",
         pedidoBorrador: params.pedidoBorrador,
+        ok: false,
       };
     }
 
@@ -527,6 +559,7 @@ export async function runAgentTurnGemini(
       return {
         mensajeCliente: resultado.mensaje,
         pedidoBorrador: params.pedidoBorrador,
+        ok: true,
       };
     }
 
@@ -594,16 +627,24 @@ Responde en el formato JSON estructurado obligatorio:
       return {
         mensajeCliente: resultado.mensaje,
         pedidoBorrador: params.pedidoBorrador,
+        ok: false,
       };
     }
 
-    return parseAgentStructuredResponse(textoFinal, params.pedidoBorrador);
+    return await parsearConTresIntentos({
+      textoInicial: textoFinal,
+      model,
+      systemInstruction,
+      contents: contentsSinTools,
+      pedidoBorradorFallback: params.pedidoBorrador,
+    });
   } catch (error) {
     console.error("Error en runAgentTurnGemini:", error);
 
     return {
       mensajeCliente: "Tuve un problema procesando tu mensaje. Intenta de nuevo.",
       pedidoBorrador: params.pedidoBorrador,
+      ok: false,
     };
   }
 }
@@ -757,10 +798,7 @@ function buildSystemPromptConBorrador(
 ${buildPedidoBorradorContext(pedidoBorrador)}`;
 }
 
-function parseAgentStructuredResponse(
-  text: string,
-  pedidoBorradorFallback: PedidoBorrador
-): AgentTurnResult {
+function parseAgentStructuredResponse(text: string): ParseAgentResult {
   try {
     const cleaned = limpiarJsonDelModelo(text);
     const parsed = JSON.parse(cleaned) as unknown;
@@ -783,19 +821,166 @@ function parseAgentStructuredResponse(
     }
 
     return {
-      mensajeCliente: data.mensaje_cliente.trim(),
-      pedidoBorrador: data.pedido_borrador,
+      ok: true,
+      data: {
+        mensajeCliente: data.mensaje_cliente.trim(),
+        pedidoBorrador: data.pedido_borrador,
+        ok: true,
+      },
     };
   } catch (error) {
-    console.error("Error parseando respuesta JSON del agente:", error);
-    console.error("Texto recibido del agente:", text);
-
     return {
-      mensajeCliente:
-        "Tuve un problema procesando el pedido. ¿Podrías repetirlo de forma breve?",
-      pedidoBorrador: pedidoBorradorFallback,
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+      rawText: text,
     };
   }
+}
+
+function parseAgentStructuredResponseSinReintentos(
+  text: string,
+  pedidoBorradorFallback: PedidoBorrador
+): AgentTurnResult {
+  const result = parseAgentStructuredResponse(text);
+
+  if (result.ok) {
+    return result.data;
+  }
+
+  console.error("Error parseando respuesta JSON del agente:", result.error);
+  console.error("Texto recibido del agente:", result.rawText);
+
+  return {
+    mensajeCliente: "Tuve un problema procesando tu mensaje. Intenta de nuevo.",
+    pedidoBorrador: pedidoBorradorFallback,
+    ok: false,
+  };
+}
+
+async function corregirRespuestaJsonConGemini(params: {
+  model: string;
+  systemInstruction: string;
+  contents: Content[];
+  textoInvalido: string;
+  error: string;
+  pedidoBorradorFallback: PedidoBorrador;
+}): Promise<string | null> {
+  const promptCorreccion = `Tu respuesta anterior no fue JSON válido o no cumplió el formato obligatorio.
+
+Debes corregirla y responder ÚNICAMENTE con JSON válido.
+No uses markdown.
+No uses comillas triples.
+No expliques nada.
+No escribas texto fuera del JSON.
+No uses herramientas.
+No confirmes que el pedido fue registrado.
+
+Error detectado:
+${params.error}
+
+Pedido borrador válido anterior:
+${JSON.stringify(params.pedidoBorradorFallback, null, 2)}
+
+Respuesta inválida que debes corregir:
+${params.textoInvalido}
+
+La respuesta corregida debe tener exactamente esta estructura:
+
+{
+  "mensaje_cliente": "texto que se enviará al cliente",
+  "pedido_borrador": {
+    "nombre_cliente": string | null,
+    "telefono_cliente": string | null,
+    "tipo_entrega": "domicilio" | "recoger_en_local" | "consumo_en_local",
+    "direccion_entrega": string | null,
+    "metodo_pago": "efectivo" | "transferencia" | null,
+    "items": [
+      {
+        "nombre_producto": string,
+        "cantidad": number,
+        "extras": string[],
+        "notas": string | null
+      }
+    ],
+    "notas": string | null
+  }
+}
+
+Reglas:
+- Debe funcionar con JSON.parse().
+- No dejes objetos incompletos.
+- No devuelvas items con objetos vacíos.
+- Conserva los datos válidos del pedido borrador anterior.
+- Si no hay extras, usa [].
+- Si no hay notas, usa null.`;
+
+  try {
+    const response = await geminiClient.models.generateContent({
+      model: params.model,
+      contents: [
+        ...params.contents.slice(-4),
+        {
+          role: "user",
+          parts: [{ text: promptCorreccion }],
+        },
+      ],
+      config: {
+        systemInstruction: params.systemInstruction,
+        maxOutputTokens: 4096,
+        toolConfig: {
+          functionCallingConfig: {
+            mode: FunctionCallingConfigMode.NONE,
+          },
+        },
+      },
+    });
+
+    return response.text?.trim() || null;
+  } catch (error) {
+    console.error("Error corrigiendo respuesta JSON con Gemini:", error);
+    return null;
+  }
+}
+
+async function parsearConTresIntentos(params: {
+  textoInicial: string;
+  model: string;
+  systemInstruction: string;
+  contents: Content[];
+  pedidoBorradorFallback: PedidoBorrador;
+}): Promise<AgentTurnResult> {
+  let textoActual = params.textoInicial;
+
+  for (let intento = 1; intento <= 3; intento++) {
+    const parseResult = parseAgentStructuredResponse(textoActual);
+
+    if (parseResult.ok) {
+      return parseResult.data;
+    }
+
+    console.error(`Error parseando respuesta JSON de Gemini. Intento ${intento}/3:`, parseResult.error);
+
+    if (intento === 3) {
+      break;
+    }
+
+    const textoCorregido = await corregirRespuestaJsonConGemini({
+      model: params.model,
+      systemInstruction: params.systemInstruction,
+      contents: params.contents,
+      textoInvalido: parseResult.rawText,
+      error: parseResult.error,
+      pedidoBorradorFallback: params.pedidoBorradorFallback,
+    });
+
+    textoActual = textoCorregido ?? "";
+  }
+
+  return {
+    mensajeCliente: "Tuve un problema organizando tu pedido. Ya pasé la conversación al restaurante para que la revise.",
+    pedidoBorrador: params.pedidoBorradorFallback,
+    ok: false,
+  };
 }
 
 function limpiarJsonDelModelo(text: string): string {

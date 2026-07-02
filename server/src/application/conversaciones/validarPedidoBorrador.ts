@@ -28,6 +28,7 @@ export function parseAgentStructuredResponse(
     return {
       mensajeCliente: data.mensaje_cliente.trim(),
       pedidoBorrador: data.pedido_borrador,
+      ok: true,
     };
   } catch (error) {
     console.error("Error parseando respuesta JSON del agente:", error);
@@ -37,6 +38,7 @@ export function parseAgentStructuredResponse(
       mensajeCliente:
         "Tuve un problema procesando el pedido. ¿Podrías repetirlo de forma breve?",
       pedidoBorrador: pedidoBorradorFallback,
+      ok: false,
     };
   }
 }
