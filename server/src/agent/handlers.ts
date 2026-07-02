@@ -15,6 +15,9 @@ import { PrepararPedidoService } from "../application/pedidos/services/PrepararP
 import { ModificarOCancelarPedidoUseCase } from "../application/pedidos/ModificarOCancelarPedidoUseCase";
 import { ClienteRepository } from "../infraestructure/repositories/ClienteRepository";
 import { enviarMensaje } from "./whatsapp";
+import { MetodosDePagoRepository } from "../infraestructure/repositories/MetodosDePagoRepository";
+import { ObtenerMetodosPagoUseCase} from "../application/negocios/ObtenerMetodosPagoUseCase";
+import { construirTextoMetodosTransf } from "../application/utils/construirTextoMetodosTransfer";
 
 function textoValido(valor: unknown): valor is string {
     return typeof valor === 'string' && valor.trim().length > 0;
@@ -118,6 +121,11 @@ export async function ejecutarHerramienta(nombre: string, input: any,
                     return `- ${item.producto.cantidad} x ${item.producto.nombreProducto}${extrasTexto}${notasTexto}: $${item.producto.subtotal}`;
                 })
                 .join('\n');
+                const metodosDePagoRepo = new MetodosDePagoRepository();
+                const obtenerMetDePagoUseCase = new ObtenerMetodosPagoUseCase(metodosDePagoRepo);
+                const metodosPagos = await obtenerMetDePagoUseCase.execute(negocioId);
+
+                const textoAñadido = construirTextoMetodosTransf(metodosPagos);
 
             if (pedidoGenerado.pedido.metodoPago === 'transferencia') {
                 return {
@@ -129,10 +137,12 @@ Productos:
 ${resumenItems}
 El domicilio tiene un valor ${pedidoGenerado.pedido.costoDomicilio} si lo vienes a recoger no te preocupes, es 0
 adicional de $1000 pesos por pedido para llevar
-Total: $${pedidoGenerado.total}
-                
+Total: $${pedidoGenerado.total} y lo del domicilio es aparte, pagado al repartidor.
+                 
 *No olvides mandar pantallazo de la transferencia para poder empezar a realizar el pedido*
-*Numero de nequi/bancolombia:* ${negocio?.numtel}
+
+${textoAñadido}
+
 *Nos demoramos entre 25 y 40 minutos*`
                 };
             }
@@ -148,7 +158,7 @@ Productos:
   ${resumenItems}
 El domicilio tiene un valor ${pedidoGenerado.pedido.costoDomicilio} si lo vienes a recoger no te preocupes, es 0
 adicional de $1000 pesos por pedido para llevar
-Total: $${pedidoGenerado.total}.
+Total: $${pedidoGenerado.total} y lo del domicilio es aparte, pagado al repartidor.
 *Nos demoramos entre 25 y 40 minutos*`
                 };
             }

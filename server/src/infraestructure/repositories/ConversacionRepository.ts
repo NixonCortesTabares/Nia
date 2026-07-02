@@ -217,7 +217,7 @@ export class ConversacionRepository implements IConversacionRepository {
                  AND m.rol = 'cliente'
                  AND m.enviado_en > $2
              )
-             THEN NOW() + INTERVAL '4 seconds'
+             THEN NOW() + INTERVAL '3 seconds'
              ELSE NULL
            END
        WHERE c.id = $1`,

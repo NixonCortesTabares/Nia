@@ -88,7 +88,7 @@ export function DashboardPage() {
       }
 
       const response = await obtenerPedidos({
-        rango: '7d',
+        rango: 'hoy',
         limit: 100,
         offset: 0,
       });

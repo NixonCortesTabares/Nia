@@ -50,10 +50,24 @@ interface WhatsAppDocumentMessage {
   };
 }
 
+interface WhatsAppAudioMessage {
+  id: string;
+  from: string;
+  timestamp: string;
+  type: "audio";
+  audio: {
+    id: string;
+    mime_type?: string;
+    sha256?: string;
+    voice?: boolean;
+  };
+}
+
 type WhatsAppMessage =
   | WhatsAppTextMessage
   | WhatsAppImageMessage
-  | WhatsAppDocumentMessage;
+  | WhatsAppDocumentMessage
+  | WhatsAppAudioMessage;
 
 interface WhatsAppWebhookBody {
   object: 'whatsapp_business_account' | string;
@@ -224,6 +238,9 @@ router.post('/', async (req, res) => {
       return;
     }
 
+    if(message.type === 'audio'){
+      await enviarMensaje(from, 'No puedo escuchar audios ahora, podrias escribirme por favor?', phoneId);
+    }
     if (!('text' in message) || !message.text?.body) {
       console.log('Mensaje de WhatsApp ignorado porque no es texto, imagen ni documento:', {
         wamid,
@@ -231,7 +248,6 @@ router.post('/', async (req, res) => {
         phoneId,
         tipo: message.type,
       });
-      await enviarMensaje(from, "Ahora no puedo escuchar audios, podrias escribirme por favor?", phoneId);
       return;
     }
 
@@ -285,7 +301,7 @@ router.post('/', async (req, res) => {
     }
     await conversacionRepo.marcarRespuestaPendiente(
       resultado.conversacion.id,
-      4500
+      3000
     );
 
     console.log(

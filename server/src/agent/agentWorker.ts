@@ -9,7 +9,7 @@ import { PedidoBorrador } from "../domain/entities/Conversacion";
 import { MenuProductoRow, ProductoRepository } from "../infraestructure/repositories/ProductoRepository";
 import { ConstruirMenuUseCase } from "../application/menu/ConstruirMenuUseCase";
 
-const WORKER_INTERVAL_MS = 5000;
+const WORKER_INTERVAL_MS = 3000;
 const PENDING_LIMIT = 10;
 
 const negocioRepo = new NegocioRepository();
