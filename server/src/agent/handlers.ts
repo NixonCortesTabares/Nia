@@ -16,7 +16,7 @@ import { ModificarOCancelarPedidoUseCase } from "../application/pedidos/Modifica
 import { ClienteRepository } from "../infraestructure/repositories/ClienteRepository";
 import { enviarMensaje } from "./whatsapp";
 import { MetodosDePagoRepository } from "../infraestructure/repositories/MetodosDePagoRepository";
-import { ObtenerMetodosPagoUseCase} from "../application/negocios/ObtenerMetodosPagoUseCase";
+import { ObtenerMetodosPagoUseCase } from "../application/negocios/ObtenerMetodosPagoUseCase";
 import { construirTextoMetodosTransf } from "../application/utils/construirTextoMetodosTransfer";
 
 function textoValido(valor: unknown): valor is string {
@@ -121,30 +121,49 @@ export async function ejecutarHerramienta(nombre: string, input: any,
                     return `- ${item.producto.cantidad} x ${item.producto.nombreProducto}${extrasTexto}${notasTexto}: $${item.producto.subtotal}`;
                 })
                 .join('\n');
-                const metodosDePagoRepo = new MetodosDePagoRepository();
-                const obtenerMetDePagoUseCase = new ObtenerMetodosPagoUseCase(metodosDePagoRepo);
-                const metodosPagos = await obtenerMetDePagoUseCase.execute(negocioId);
+            const metodosDePagoRepo = new MetodosDePagoRepository();
+            const obtenerMetDePagoUseCase = new ObtenerMetodosPagoUseCase(metodosDePagoRepo);
+            const metodosPagos = await obtenerMetDePagoUseCase.execute(negocioId);
 
-                const textoAñadido = construirTextoMetodosTransf(metodosPagos);
+            const textoAñadido = construirTextoMetodosTransf(metodosPagos);
+            const lineasMensaje: string[] = [];
 
+            lineasMensaje.push("Ya registré tu pedido.");
+            lineasMensaje.push("");
+            lineasMensaje.push(pedidoGenerado.pedido.direccionEntrega ?? "En el local");
+            lineasMensaje.push(pedidoGenerado.pedido.telefonoCliente);
+            lineasMensaje.push("");
+            lineasMensaje.push("Productos:");
+            lineasMensaje.push(resumenItems);
+            lineasMensaje.push("");
+
+            if (pedidoGenerado.pedido.tipoEntrega === "domicilio") {
+                lineasMensaje.push(
+                    `Domicilio: ${pedidoGenerado.pedido.costoDomicilio ?? "se confirma según ubicación"}`
+                );
+                lineasMensaje.push("El domicilio se paga aparte al repartidor.");
+            } else {
+                lineasMensaje.push("Entrega: recoger en el local.");
+            }
+
+            lineasMensaje.push("");
+            lineasMensaje.push(`Total productos: $${pedidoGenerado.total}`);
+
+            if (pedidoGenerado.pedido.metodoPago === "transferencia") {
+                lineasMensaje.push("");
+                lineasMensaje.push(
+                    "*No olvides mandar pantallazo de la transferencia para poder empezar a realizar el pedido.*"
+                );
+
+                lineasMensaje.push(textoAñadido)
+            }
+
+            lineasMensaje.push("");
+            lineasMensaje.push("Nos demoramos entre 25 y 40 minutos.");
+
+            const mensaje = lineasMensaje.join("\n").trim();
             if (pedidoGenerado.pedido.metodoPago === 'transferencia') {
-                return {
-                    ok: true, mensaje:
-                        `Ya registré  tu pedido.
- ${pedidoGenerado.pedido.direccionEntrega ?? 'En el local'}
-${pedidoGenerado.pedido.telefonoCliente}
-Productos:
-${resumenItems}
-El domicilio tiene un valor ${pedidoGenerado.pedido.costoDomicilio} si lo vienes a recoger no te preocupes, es 0
-adicional de $1000 pesos por pedido para llevar
-Total: $${pedidoGenerado.total} y lo del domicilio es aparte, pagado al repartidor.
-                 
-*No olvides mandar pantallazo de la transferencia para poder empezar a realizar el pedido*
-
-${textoAñadido}
-
-*Nos demoramos entre 25 y 40 minutos*`
-                };
+                return {ok:true, mensaje};
             }
             else {
 
