@@ -795,6 +795,10 @@ textarea {
     grid-template-columns: 1fr;
   }
 
+  .metric-mobile-hidden {
+    display: none;
+  }
+
   .kanban {
     grid-template-columns: 1fr;
   }

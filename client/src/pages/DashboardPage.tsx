@@ -170,9 +170,9 @@ export function DashboardPage() {
 
       <section className="metric-grid">
         <Metric label="Pedidos de hoy" value={resumen.total} />
-        <Metric label="Pendientes" value={resumen.pendientes} />
-        <Metric label="En cocina" value={resumen.cocina} />
-        <Metric label="En ruta" value={resumen.ruta} />
+        <Metric label="Pendientes" value={resumen.pendientes} hideOnMobile />
+        <Metric label="En cocina" value={resumen.cocina} hideOnMobile />
+        <Metric label="En ruta" value={resumen.ruta} hideOnMobile />
         <Metric label="Entregados" value={resumen.entregados} />
         <Metric label="Total vendido hoy" value={formatCurrency(resumen.vendido)} />
       </section>
@@ -202,9 +202,9 @@ export function DashboardPage() {
   );
 }
 
-function Metric({ label, value }: { label: string; value: string | number }) {
+function Metric({ label, value, hideOnMobile = false }: { label: string; value: string | number; hideOnMobile?: boolean }) {
   return (
-    <Card className="metric">
+    <Card className={`metric ${hideOnMobile ? 'metric-mobile-hidden' : ''}`}>
       <span>{label}</span>
       <strong>{value}</strong>
     </Card>
