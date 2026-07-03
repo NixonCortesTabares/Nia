@@ -10,7 +10,7 @@ const items = [
   { label: 'Configuracion', path: '/configuracion', icon: Settings },
 ]
 
-export function Sidebar() {
+export function Sidebar({ conversacionesPendientes }: { conversacionesPendientes: number }) {
   const { path, navigate } = useRouter()
 
   return (
@@ -24,14 +24,20 @@ export function Sidebar() {
       </button>
       <nav className="sidebar-nav" aria-label="Principal">
         {items.map((item) => (
-          <NavButton key={item.path} item={item} active={path === item.path} onClick={() => navigate(item.path)} />
+          <NavButton
+            key={item.path}
+            item={item}
+            active={path === item.path}
+            count={item.path === '/conversaciones' ? conversacionesPendientes : 0}
+            onClick={() => navigate(item.path)}
+          />
         ))}
       </nav>
     </aside>
   )
 }
 
-function NavButton({ item, active, onClick }: { item: (typeof items)[number]; active: boolean; onClick: () => void }) {
+function NavButton({ item, active, count, onClick }: { item: (typeof items)[number]; active: boolean; count: number; onClick: () => void }) {
   const Icon = item.icon
 
   return (
@@ -41,6 +47,7 @@ function NavButton({ item, active, onClick }: { item: (typeof items)[number]; ac
     >
       <span><Icon size={16} strokeWidth={1.8} /></span>
       {item.label}
+      {count > 0 ? <strong className="conversation-alert-count">{count}</strong> : null}
     </button>
   )
 }

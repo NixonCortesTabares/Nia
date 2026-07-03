@@ -49,6 +49,7 @@ export class ProcesarMensajeEntranteUseCase {
         }
         let conversacionActiva = await this.conversacionRepository.buscarActivaYEscalada(cliente.id, negocio.id);
 
+        
         if (!conversacionActiva) {
             const crearConversacion = await this.conversacionRepository.crear({
                 negocioId: negocio.id,

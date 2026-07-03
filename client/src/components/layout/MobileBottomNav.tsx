@@ -16,7 +16,7 @@ const more = [
   { label: 'Cerrar sesion', path: '/login' },
 ]
 
-export function MobileBottomNav() {
+export function MobileBottomNav({ conversacionesPendientes }: { conversacionesPendientes: number }) {
   const { path, navigate } = useRouter()
   const [open, setOpen] = useState(false)
 
@@ -30,7 +30,12 @@ export function MobileBottomNav() {
       {open ? (
         <div className="mobile-more">
           {more.map((item) => (
-            <button key={item.path} onClick={() => go(item.path)}>{item.label}</button>
+            <button key={item.path} onClick={() => go(item.path)}>
+              {item.label}
+              {item.path === '/conversaciones' && conversacionesPendientes > 0 ? (
+                <strong className="conversation-alert-count">{conversacionesPendientes}</strong>
+              ) : null}
+            </button>
           ))}
         </div>
       ) : null}

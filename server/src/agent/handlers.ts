@@ -149,39 +149,19 @@ export async function ejecutarHerramienta(nombre: string, input: any,
             lineasMensaje.push("");
             lineasMensaje.push("$1000 adicionales por pedido para llevar.");
             lineasMensaje.push(`Total productos: $${pedidoGenerado.total}`);
-
             if (pedidoGenerado.pedido.metodoPago === "transferencia") {
                 lineasMensaje.push("");
                 lineasMensaje.push(
                     "*No olvides mandar pantallazo de la transferencia para poder empezar a realizar el pedido.*"
                 );
-
                 lineasMensaje.push(textoAñadido)
             }
-
             lineasMensaje.push("");
             lineasMensaje.push("Nos demoramos entre 25 y 40 minutos.");
-
+            lineasMensaje.push(`Si tienes alguna solicitud, queja, reclamo, por favor llama: ${negocio?.numtel}`);
             const mensaje = lineasMensaje.join("\n").trim();
-            if (pedidoGenerado.pedido.metodoPago === 'transferencia') {
-                return {ok:true, mensaje};
-            }
-            else {
+            return { ok: true, mensaje};
 
-                return {
-                    ok: true, mensaje: `
-Ya registré tu pedido.
-${pedidoGenerado.pedido.direccionEntrega ?? 'En el local'}
-${pedidoGenerado.pedido.nombreCliente}
-${pedidoGenerado.pedido.telefonoCliente}
-Productos:
-  ${resumenItems}
-El domicilio tiene un valor ${pedidoGenerado.pedido.costoDomicilio} si lo vienes a recoger no te preocupes, es 0
-adicional de $1000 pesos por pedido para llevar
-Total: $${pedidoGenerado.total} y lo del domicilio es aparte, pagado al repartidor.
-*Nos demoramos entre 25 y 40 minutos*`
-                };
-            }
         }
         /*   if (nombre === 'modificar_o_cancelar_pedido') {
    
