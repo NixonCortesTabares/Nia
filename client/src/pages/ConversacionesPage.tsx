@@ -16,7 +16,7 @@ import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 
-const POLLING_INTERVAL_MS = 3000
+const POLLING_INTERVAL_MS = 60000
 
 const estadoLabel: Record<string, string> = {
   activa: 'Activa',

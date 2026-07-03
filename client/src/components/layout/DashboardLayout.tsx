@@ -24,13 +24,15 @@ export function DashboardLayout({ title, children }: { title: string; children: 
       const gain = context.createGain()
       oscillator.type = 'sine'
       oscillator.frequency.setValueAtTime(880, context.currentTime)
+      oscillator.frequency.setValueAtTime(740, context.currentTime + 0.65)
       gain.gain.setValueAtTime(0.0001, context.currentTime)
-      gain.gain.exponentialRampToValueAtTime(0.16, context.currentTime + 0.02)
-      gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.35)
+      gain.gain.exponentialRampToValueAtTime(0.38, context.currentTime + 0.03)
+      gain.gain.setValueAtTime(0.38, context.currentTime + 0.95)
+      gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 1.3)
       oscillator.connect(gain)
       gain.connect(context.destination)
       oscillator.start()
-      oscillator.stop(context.currentTime + 0.36)
+      oscillator.stop(context.currentTime + 1.31)
     }).catch(() => undefined)
   }, [])
 
@@ -82,7 +84,7 @@ export function DashboardLayout({ title, children }: { title: string; children: 
     window.addEventListener('pointerdown', habilitarAudio, { once: true })
     window.addEventListener('nia:conversacion-abierta', conversacionAbierta)
     void actualizarPendientes()
-    const intervalId = window.setInterval(actualizarPendientes, 3000)
+    const intervalId = window.setInterval(actualizarPendientes, 60000)
 
     return () => {
       window.removeEventListener('pointerdown', habilitarAudio)
