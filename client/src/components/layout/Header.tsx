@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { LogOut, Moon, Sun } from 'lucide-react'
 import { Button } from '../ui/Button'
+import { cerrarSesion } from '../../api/authApi'
 import { useRouter } from '../../routes/AppRoutes'
 
 export function Header({ title }: { title: string }) {
@@ -12,6 +13,11 @@ export function Header({ title }: { title: string }) {
     localStorage.setItem('nia-theme', dark ? 'dark' : 'light')
   }, [dark])
 
+  const handleCerrarSesion = () => {
+    cerrarSesion()
+    navigate('/login')
+  }
+
   return (
     <header className="topbar">
       <div>
@@ -22,7 +28,7 @@ export function Header({ title }: { title: string }) {
         <Button variant="ghost" icon={dark ? <Sun size={16} /> : <Moon size={16} />} onClick={() => setDark((value) => !value)}>
           {dark ? 'Claro' : 'Oscuro'}
         </Button>
-        <Button variant="secondary" icon={<LogOut size={16} />} onClick={() => navigate('/login')}>Cerrar sesion</Button>
+        <Button variant="secondary" icon={<LogOut size={16} />} onClick={handleCerrarSesion}>Cerrar sesion</Button>
       </div>
     </header>
   )

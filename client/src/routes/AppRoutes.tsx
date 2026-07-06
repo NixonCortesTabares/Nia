@@ -46,12 +46,8 @@ function RutaPrivada({ children }: { children: ReactNode }) {
   return children
 }
 
-function RutaPublicaSoloSinSesion({ children }: { children: ReactNode }) {
-  if (tieneJwtValido()) {
-    return <Navigate to="/dashboard" replace />
-  }
-
-  return children
+function RutaRaiz() {
+  return <Navigate to={tieneJwtValido() ? '/dashboard' : '/login'} replace />
 }
 
 export function useRouter() {
@@ -68,15 +64,8 @@ export function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route
-          path="/login"
-          element={
-            <RutaPublicaSoloSinSesion>
-              <LoginPage />
-            </RutaPublicaSoloSinSesion>
-          }
-        />
+        <Route path="/" element={<RutaRaiz />} />
+        <Route path="/login" element={<LoginPage />} />
         <Route path="/agendar-visita" element={<AgendarVisitaPage />} />
         <Route path="/privacidad" element={<PrivacidadPage />} />
         <Route path="/eliminacion-datos" element={<EliminacionDatosPage />} />

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { ChefHat, ClipboardList, Home, MoreHorizontal } from 'lucide-react'
+import { cerrarSesion } from '../../api/authApi'
 import { useRouter } from '../../routes/AppRoutes'
 
 const primary = [
@@ -22,6 +23,9 @@ export function MobileBottomNav({ conversacionesPendientes }: { conversacionesPe
 
   const go = (nextPath: string) => {
     setOpen(false)
+    if (nextPath === '/login') {
+      cerrarSesion()
+    }
     navigate(nextPath)
   }
 
