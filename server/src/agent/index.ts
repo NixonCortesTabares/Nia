@@ -490,6 +490,7 @@ ${buildPedidoBorradorContext(pedidoBorrador, false)}`
   else {
     return `
     ${buildSystemPrompt(negocio, true)}
+    El total del pedido del cliente es de $${pendientesPorCliente.total}
     ${buildPedidoBorradorContext(pedidoBorrador, true)}
     `
   }
