@@ -43,7 +43,7 @@ export async function enviarTemplateWhatsApp({
     }
   );
 
-  const data = await response.json();
+  const data = await response.json() as any;
 
   if (!response.ok) {
     console.error("Error enviando template WhatsApp:", {
