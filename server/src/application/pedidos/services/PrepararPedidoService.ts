@@ -162,7 +162,7 @@ export class PrepararPedidoService {
     }
     const costoDomicilio = negocio.costo_domicilio
     const totalProductos = productos.reduce((total, item) => total + item.subtotal, 0);
-    const adicional = 1000; //CODIGO PENDIENTE LOL
+    const adicional = 1000 * input.items.length;; //CODIGO PENDIENTE LOL
     const total = totalProductos + adicional;
 
     return ({

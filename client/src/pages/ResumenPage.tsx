@@ -234,15 +234,15 @@ export function ResumenPage() {
         <Metric label="Pedidos últimos 7 días" value={resumen.pedidos7Dias} />
         <Metric label="Pedidos último mes" value={resumen.pedidosMes} />
         <Metric
-          label="Dinero vendido últimos 7 días"
+          label="Dinero ganado últimos 7 días"
           value={formatCurrency(resumen.ventas7Dias)}
         />
         <Metric
-          label="Dinero vendido último mes"
+          label="Dinero ganado último mes"
           value={formatCurrency(resumen.ventasMes)}
         />
         <Metric
-          label="Ticket promedio"
+          label="precio promedio por pedido"
           value={formatCurrency(resumen.ticketPromedio)}
         />
         <Metric

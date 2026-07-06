@@ -227,7 +227,7 @@ router.post('/', async (req, res) => {
 
       const respuesta = falloMedia
         ? 'Recibimos tu archivo, pero tuvimos un problema procesándolo. Por favor envíalo nuevamente o espera a que el restaurante te contacte.'
-        : 'Recibimos tu comprobante. Un momento lo revisamos.';
+        : 'Recibimos tu comprobante. Gracias!.';
 
       try {
         await enviarMensaje(from, respuesta, phoneId);

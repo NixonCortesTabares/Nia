@@ -82,7 +82,6 @@ export class GenerarPedidoUseCase {
 
     const pedidoPreparado = await this.prepararPedidoService.execute(input);
     const clienteTel = await this.clienteRepo.buscarPorId(pedidoPreparado.pedido.clienteId);
-    console.log(clienteTel)
     if (!clienteTel) {
       const pedidoCompleto = await this.pedidoRepository.crearCompleto(pedidoPreparado);
       return {

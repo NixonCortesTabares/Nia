@@ -559,6 +559,10 @@ textarea {
   min-width: 0;
 }
 
+.conversation-detail-panel {
+  grid-template-rows: auto auto minmax(380px, 1fr) auto;
+}
+
 .conversation-list-panel.card,
 .conversation-detail-panel.card {
   border: 0;
@@ -660,7 +664,8 @@ textarea {
 
 .messages-panel {
   min-height: 380px;
-  max-height: calc(100svh - 330px);
+  height: 100%;
+  max-height: none;
   display: flex;
   flex-direction: column;
   gap: 10px;

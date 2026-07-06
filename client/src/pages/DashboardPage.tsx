@@ -71,6 +71,37 @@ export function DashboardPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const isFetchingRef = useRef(false);
+  const pedidosAnterioresRef = useRef<Set<string> | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+
+  const reproducirAlarma = useCallback(() => {
+    const context = audioContextRef.current ?? new window.AudioContext();
+    audioContextRef.current = context;
+
+    void context.resume().then(() => {
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      const inicio = context.currentTime;
+      const duracion = 2.6;
+
+      oscillator.type = 'square';
+      oscillator.frequency.setValueAtTime(880, inicio);
+      oscillator.frequency.setValueAtTime(660, inicio + 0.35);
+      oscillator.frequency.setValueAtTime(880, inicio + 0.7);
+      oscillator.frequency.setValueAtTime(660, inicio + 1.05);
+      oscillator.frequency.setValueAtTime(880, inicio + 1.4);
+      oscillator.frequency.setValueAtTime(660, inicio + 1.75);
+      oscillator.frequency.setValueAtTime(880, inicio + 2.1);
+      gain.gain.setValueAtTime(0.0001, inicio);
+      gain.gain.exponentialRampToValueAtTime(0.55, inicio + 0.03);
+      gain.gain.setValueAtTime(0.55, inicio + duracion - 0.1);
+      gain.gain.exponentialRampToValueAtTime(0.0001, inicio + duracion);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start(inicio);
+      oscillator.stop(inicio + duracion);
+    }).catch(() => undefined);
+  }, []);
 
   const cargarPedidos = useCallback(async (options?: { silent?: boolean }) => {
     if (isFetchingRef.current) {
@@ -93,6 +124,17 @@ export function DashboardPage() {
         offset: 0,
       });
 
+      const pedidosActuales = new Set(response.pedidos.map((pedido) => pedido.id));
+
+      if (
+        pedidosAnterioresRef.current
+        && response.pedidos.some((pedido) => !pedidosAnterioresRef.current?.has(pedido.id))
+      ) {
+        reproducirAlarma();
+      }
+
+      pedidosAnterioresRef.current = pedidosActuales;
+
       setPedidos(response.pedidos);
     } catch (error) {
       setError(getApiErrorMessage(error));
@@ -101,6 +143,21 @@ export function DashboardPage() {
       setRefreshing(false);
       isFetchingRef.current = false;
     }
+  }, [reproducirAlarma]);
+
+  useEffect(() => {
+    const habilitarAudio = () => {
+      audioContextRef.current ??= new window.AudioContext();
+      void audioContextRef.current.resume();
+    };
+
+    window.addEventListener('pointerdown', habilitarAudio, { once: true });
+
+    return () => {
+      window.removeEventListener('pointerdown', habilitarAudio);
+      void audioContextRef.current?.close();
+      audioContextRef.current = null;
+    };
   }, []);
 
   useEffect(() => {
