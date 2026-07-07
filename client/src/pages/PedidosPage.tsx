@@ -4,6 +4,7 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Modal } from '../components/ui/Modal';
 import {
+  actualizarEstadoPedido,
   obtenerPedidos,
   type Pedido,
 } from '../api/pedidosApi';
@@ -41,6 +42,17 @@ const states: EstadoFiltro[] = [
   'En ruta',
   'Entregado',
   'Cancelado',
+];
+
+const estadosPedido: Array<{
+  backend: EstadoPedidoBackend;
+  label: EstadoPedidoFront;
+}> = [
+  { backend: 'pendiente', label: 'Pendiente' },
+  { backend: 'en_cocina', label: 'En cocina' },
+  { backend: 'en_ruta', label: 'En ruta' },
+  { backend: 'entregado', label: 'Entregado' },
+  { backend: 'cancelado', label: 'Cancelado' },
 ];
 
 const POLLING_INTERVAL_MS = 30000;
@@ -126,6 +138,7 @@ export function PedidosPage() {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [updatingPedidoId, setUpdatingPedidoId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const isFetchingRef = useRef(false);
 
@@ -177,6 +190,33 @@ export function PedidosPage() {
       window.clearInterval(intervalId);
     };
   }, [cargarPedidos]);
+
+  async function changeStatus(id: string, estado: EstadoPedidoBackend) {
+    const pedidosAnteriores = pedidos;
+    const selectedAnterior = selected;
+
+    try {
+      setError('');
+      setUpdatingPedidoId(id);
+      setPedidos((current) =>
+        current.map((pedido) =>
+          pedido.id === id ? { ...pedido, estado } : pedido
+        )
+      );
+      setSelected((current) =>
+        current?.id === id ? { ...current, estado } : current
+      );
+
+      await actualizarEstadoPedido(id, estado);
+      await cargarPedidos({ silent: true });
+    } catch (error) {
+      setPedidos(pedidosAnteriores);
+      setSelected(selectedAnterior);
+      setError(getApiErrorMessage(error));
+    } finally {
+      setUpdatingPedidoId(null);
+    }
+  }
 
   return (
     <div className="stack">
@@ -274,7 +314,11 @@ export function PedidosPage() {
                     <td>{formatCurrency(pedido.total)}</td>
 
                     <td>
-                      <StatusBadge estado={estadoToLabel(pedido.estado)} />
+                      <EstadoPedidoSelect
+                        estado={pedido.estado}
+                        disabled={updatingPedidoId === pedido.id}
+                        onChange={(estado) => changeStatus(pedido.id, estado)}
+                      />
                     </td>
 
                     <td>
@@ -300,7 +344,11 @@ export function PedidosPage() {
               >
                 <div className="order-top">
                   <strong>#{pedido.id.slice(0, 8)}</strong>
-                  <StatusBadge estado={estadoToLabel(pedido.estado)} />
+                  <EstadoPedidoSelect
+                    estado={pedido.estado}
+                    disabled={updatingPedidoId === pedido.id}
+                    onChange={(estado) => changeStatus(pedido.id, estado)}
+                  />
                 </div>
 
                 <p>
@@ -340,6 +388,8 @@ export function PedidosPage() {
       {selected ? (
         <PedidoDetalle
           pedido={selected}
+          updating={updatingPedidoId === selected.id}
+          onChangeStatus={(estado) => changeStatus(selected.id, estado)}
           onClose={() => setSelected(null)}
         />
       ) : null}
@@ -349,9 +399,13 @@ export function PedidosPage() {
 
 function PedidoDetalle({
   pedido,
+  updating,
+  onChangeStatus,
   onClose,
 }: {
   pedido: Pedido;
+  updating: boolean;
+  onChangeStatus: (estado: EstadoPedidoBackend) => void;
   onClose: () => void;
 }) {
   return (
@@ -388,7 +442,11 @@ function PedidoDetalle({
 
         <div>
           <span className="label">Estado</span>
-          <StatusBadge estado={estadoToLabel(pedido.estado)} />
+          <EstadoPedidoSelect
+            estado={pedido.estado}
+            disabled={updating}
+            onChange={onChangeStatus}
+          />
         </div>
 
         <Info
@@ -440,6 +498,33 @@ function PedidoDetalle({
         )}
       </div>
     </Modal>
+  );
+}
+
+function EstadoPedidoSelect({
+  estado,
+  disabled,
+  onChange,
+}: {
+  estado: string;
+  disabled: boolean;
+  onChange: (estado: EstadoPedidoBackend) => void;
+}) {
+  return (
+    <div className="grid gap-2" onClick={(event) => event.stopPropagation()}>
+      <StatusBadge estado={estadoToLabel(estado)} />
+      <select
+        value={estado}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.value as EstadoPedidoBackend)}
+      >
+        {estadosPedido.map((item) => (
+          <option key={item.backend} value={item.backend}>
+            {item.label}
+          </option>
+        ))}
+      </select>
+    </div>
   );
 }
 
