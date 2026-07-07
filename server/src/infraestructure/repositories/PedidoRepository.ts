@@ -323,7 +323,7 @@ export class PedidoRepository implements IPedidoRepository {
     AND c.negocio_id = p.negocio_id
    WHERE p.negocio_id = $1
      AND c.telefono = $2
-     AND p.estado IN ('pendiente', 'confirmado')
+     AND p.estado IN ('pendiente', 'en_cocina', 'en_ruta')
    ORDER BY p.creado_en DESC
    LIMIT 1`,
       [negocioId, telefonoCliente]
