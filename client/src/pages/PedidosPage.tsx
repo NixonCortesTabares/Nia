@@ -56,6 +56,7 @@ const estadosPedido: Array<{
 ];
 
 const POLLING_INTERVAL_MS = 30000;
+const BOGOTA_UTC_OFFSET_HOURS = 5;
 
 const estadoFrontToBackend: Record<EstadoPedidoFront, EstadoPedidoBackend> = {
   Pendiente: 'pendiente',
@@ -92,15 +93,45 @@ function formatDateTime(fechaIso: string) {
   });
 }
 
-function formatDateInput(date: Date) {
-  return date.toISOString().slice(0, 10);
+function formatDateTimeFilter(date: Date) {
+  const pad = (value: number) => String(value).padStart(2, '0');
+
+  return [
+    date.getUTCFullYear(),
+    pad(date.getUTCMonth() + 1),
+    pad(date.getUTCDate()),
+  ].join('-') + ` ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
+}
+
+function getBogotaDateParts(date: Date) {
+  const parts = new Intl.DateTimeFormat('es-CO', {
+    timeZone: 'America/Bogota',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+
+  return {
+    year: Number(parts.find((part) => part.type === 'year')?.value),
+    month: Number(parts.find((part) => part.type === 'month')?.value),
+    day: Number(parts.find((part) => part.type === 'day')?.value),
+  };
+}
+
+function getFiltroDiaBogota(date = new Date()) {
+  const { year, month, day } = getBogotaDateParts(date);
+  const inicioDiaUtc = new Date(Date.UTC(year, month - 1, day, BOGOTA_UTC_OFFSET_HOURS, 0, 0));
+  const finDiaUtc = new Date(Date.UTC(year, month - 1, day + 1, BOGOTA_UTC_OFFSET_HOURS, 0, 0) - 1000);
+
+  return {
+    desde: formatDateTimeFilter(inicioDiaUtc),
+    hasta: formatDateTimeFilter(finDiaUtc),
+  };
 }
 
 function obtenerFiltroPeriodo(period: PeriodoFiltro) {
   if (period === 'Hoy') {
-    return {
-      rango: 'hoy' as const,
-    };
+    return getFiltroDiaBogota();
   }
 
   if (period === 'Ultimos 7 dias') {
@@ -115,15 +146,11 @@ function obtenerFiltroPeriodo(period: PeriodoFiltro) {
     };
   }
 
-  const hoy = new Date();
   const ayer = new Date();
 
-  ayer.setDate(hoy.getDate() - 1);
+  ayer.setDate(ayer.getDate() - 1);
 
-  return {
-    desde: formatDateInput(ayer),
-    hasta: formatDateInput(hoy),
-  };
+  return getFiltroDiaBogota(ayer);
 }
 
 function estadoToLabel(estado: string): EstadoPedidoFront {
