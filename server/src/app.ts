@@ -13,6 +13,7 @@ import extrasRoutes from './infraestructure/http/routes/privadas/extras.routes';
 import menuRoutes from './infraestructure/http/routes/publicas/menu.routes';
 import mensajesRoutes from './infraestructure/http/routes/privadas/mensajes.routes';
 import conversacionesRoutes from './infraestructure/http/routes/privadas/conversaciones.routes';
+import horariosAtencionRoutes from './infraestructure/http/routes/privadas/horarios-atencion.routes';
 import { CerrarConversacionesUseCase } from './application/conversaciones/CerrarConversacionesUseCase';
 import { ConversacionRepository } from './infraestructure/repositories/ConversacionRepository';
 dotenv.config();
@@ -52,6 +53,7 @@ apiRouter.use('/extras', extrasRoutes)
 apiRouter.use('/menu', menuRoutes)
 apiRouter.use('/mensajes', mensajesRoutes);
 apiRouter.use('/conversaciones', conversacionesRoutes);
+apiRouter.use('/horarios-atencion', horariosAtencionRoutes);
 app.use('/api', apiRouter);
 
 startAgentWorker();

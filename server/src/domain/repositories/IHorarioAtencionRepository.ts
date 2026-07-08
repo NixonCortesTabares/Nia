@@ -2,7 +2,7 @@ import { ActualizarHorarioAtencionDTO, CrearHorarioAtencionDTO, HorarioAtencion 
 
 export interface IHorarioAtencionRepository {
     crear(data: CrearHorarioAtencionDTO): Promise<HorarioAtencion | null>
-    actualizar(negocioId: string, id:string, data: ActualizarHorarioAtencionDTO): Promise<HorarioAtencion | null>
+    actualizar(id: string, negocioId: string, data: ActualizarHorarioAtencionDTO): Promise<HorarioAtencion | null>
     buscarPorNegocio(negocioId: string): Promise<HorarioAtencion[]>
     buscarPorId(id: string, negocioId: string): Promise<HorarioAtencion | null>;
     eliminar(id: string, negocioId: string): Promise<boolean>;

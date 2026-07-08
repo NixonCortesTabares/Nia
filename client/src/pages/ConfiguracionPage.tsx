@@ -6,7 +6,61 @@ import {
   obtenerMiNegocio,
   type NegocioFormData,
 } from '../api/negocioApi';
+import {
+  actualizarHorarioAtencion,
+  crearHorarioAtencion,
+  obtenerHorariosAtencion,
+  type HorarioAtencion,
+} from '../api/horariosAtencionApi';
 import { getApiErrorMessage } from '../api/apiClient';
+
+const DIAS_SEMANA = [
+  'Domingo',
+  'Lunes',
+  'Martes',
+  'Miercoles',
+  'Jueves',
+  'Viernes',
+  'Sabado',
+];
+
+interface HorarioFormData {
+  id: string | null;
+  diaSemana: number;
+  horaApertura: string;
+  horaCierre: string;
+  activo: boolean;
+}
+
+function crearHorariosBase(): HorarioFormData[] {
+  return DIAS_SEMANA.map((_, diaSemana) => ({
+    id: null,
+    diaSemana,
+    horaApertura: '09:00',
+    horaCierre: '18:00',
+    activo: true,
+  }));
+}
+
+function mapHorariosForm(horarios: HorarioAtencion[]): HorarioFormData[] {
+  const horariosPorDia = new Map(horarios.map((horario) => [horario.diaSemana, horario]));
+
+  return crearHorariosBase().map((horarioBase) => {
+    const horario = horariosPorDia.get(horarioBase.diaSemana);
+
+    if (!horario) {
+      return horarioBase;
+    }
+
+    return {
+      id: horario.id,
+      diaSemana: horario.diaSemana,
+      horaApertura: horario.horaApertura,
+      horaCierre: horario.horaCierre,
+      activo: horario.activo,
+    };
+  });
+}
 
 export function ConfiguracionPage() {
   const [formData, setFormData] = useState<NegocioFormData>({
@@ -24,6 +78,9 @@ export function ConfiguracionPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
+  const [horarios, setHorarios] = useState<HorarioFormData[]>(crearHorariosBase);
+  const [savingHorarios, setSavingHorarios] = useState(false);
+  const [horariosSaved, setHorariosSaved] = useState(false);
 
   useEffect(() => {
     async function cargarNegocio() {
@@ -31,8 +88,11 @@ export function ConfiguracionPage() {
         setLoading(true);
         setError('');
 
-        const response = await obtenerMiNegocio();
-        const negocio = response.negocio;
+        const [negocioResponse, horariosResponse] = await Promise.all([
+          obtenerMiNegocio(),
+          obtenerHorariosAtencion(),
+        ]);
+        const negocio = negocioResponse.negocio;
 
         setFormData({
           nombre: negocio.nombre ?? '',
@@ -47,6 +107,7 @@ export function ConfiguracionPage() {
 
         setTelefonoWs(negocio.telefonoWs);
         setActivo(negocio.activo);
+        setHorarios(mapHorariosForm(horariosResponse.horarios));
       } catch (error) {
         setError(getApiErrorMessage(error));
       } finally {
@@ -68,6 +129,22 @@ export function ConfiguracionPage() {
     }));
 
     setSaved(false);
+  }
+
+  function handleHorarioChange(
+    diaSemana: number,
+    field: 'horaApertura' | 'horaCierre' | 'activo',
+    value: string | boolean
+  ) {
+    setHorarios((current) =>
+      current.map((horario) =>
+        horario.diaSemana === diaSemana
+          ? { ...horario, [field]: value }
+          : horario
+      )
+    );
+
+    setHorariosSaved(false);
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -94,6 +171,42 @@ export function ConfiguracionPage() {
       setError(getApiErrorMessage(error));
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleSubmitHorarios(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    try {
+      setSavingHorarios(true);
+      setError('');
+      setHorariosSaved(false);
+
+      const horariosGuardados = await Promise.all(
+        horarios.map(async (horario) => {
+          const payload = {
+            diaSemana: horario.diaSemana,
+            horaApertura: horario.horaApertura,
+            horaCierre: horario.horaCierre,
+            activo: horario.activo,
+          };
+
+          if (horario.id) {
+            const response = await actualizarHorarioAtencion(horario.id, payload);
+            return response.horario;
+          }
+
+          const response = await crearHorarioAtencion(payload);
+          return response.horario;
+        })
+      );
+
+      setHorarios(mapHorariosForm(horariosGuardados));
+      setHorariosSaved(true);
+    } catch (error) {
+      setError(getApiErrorMessage(error));
+    } finally {
+      setSavingHorarios(false);
     }
   }
 
@@ -131,6 +244,12 @@ export function ConfiguracionPage() {
         {saved && (
           <div className="success-message">
             Configuración guardada correctamente.
+          </div>
+        )}
+
+        {horariosSaved && (
+          <div className="success-message">
+            Horarios guardados correctamente.
           </div>
         )}
 
@@ -225,6 +344,90 @@ export function ConfiguracionPage() {
           <div className="full flex justify-center">
             <Button variant="primary" type="submit" disabled={saving}>
               {saving ? 'Guardando...' : 'Guardar cambios'}
+            </Button>
+          </div>
+        </form>
+
+        <form className="form" onSubmit={handleSubmitHorarios}>
+          <div className="section-header">
+            <div>
+              <h2>Horarios de atencion</h2>
+              <p>Configura apertura y cierre por dia.</p>
+            </div>
+          </div>
+
+          <div className="table-wrap">
+            <table className="orders-table">
+              <thead>
+                <tr>
+                  <th>Dia</th>
+                  <th>Apertura</th>
+                  <th>Cierre</th>
+                  <th>Activo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {horarios.map((horario) => (
+                  <tr key={horario.diaSemana}>
+                    <td>
+                      <strong>{DIAS_SEMANA[horario.diaSemana]}</strong>
+                    </td>
+                    <td>
+                      <input
+                        type="time"
+                        value={horario.horaApertura}
+                        onChange={(event) =>
+                          handleHorarioChange(
+                            horario.diaSemana,
+                            'horaApertura',
+                            event.target.value
+                          )
+                        }
+                        disabled={savingHorarios || !horario.activo}
+                        required
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="time"
+                        value={horario.horaCierre}
+                        onChange={(event) =>
+                          handleHorarioChange(
+                            horario.diaSemana,
+                            'horaCierre',
+                            event.target.value
+                          )
+                        }
+                        disabled={savingHorarios || !horario.activo}
+                        required
+                      />
+                    </td>
+                    <td>
+                      <label className="inline-checkbox">
+                        <input
+                          type="checkbox"
+                          checked={horario.activo}
+                          onChange={(event) =>
+                            handleHorarioChange(
+                              horario.diaSemana,
+                              'activo',
+                              event.target.checked
+                            )
+                          }
+                          disabled={savingHorarios}
+                        />
+                        Activo
+                      </label>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex justify-center">
+            <Button variant="primary" type="submit" disabled={savingHorarios}>
+              {savingHorarios ? 'Guardando...' : 'Guardar horarios'}
             </Button>
           </div>
         </form>
