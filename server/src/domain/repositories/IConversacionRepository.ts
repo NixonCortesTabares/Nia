@@ -1,3 +1,4 @@
+import { ConversacionResumen, ConversacionResumenRow } from '../../application/conversaciones/ListarConversacionesUseCase';
 import { Conversacion, CrearConversacionDTO, ActualizarConversacionDTO, PedidoBorradorItem } from '../entities/Conversacion';
 import { PedidoBorrador } from '../entities/Conversacion';
 
@@ -14,8 +15,9 @@ export interface IConversacionRepository {
     conversacionId: string,
     mensajeClienteId: string
   ): Promise<void>;
-  actualizarPedidoBorrador(conversacionId:string, pedidoBorrador: PedidoBorrador):Promise<Conversacion | null>;
-  obtenerPedidoBorrador(conversacionId:string):Promise<PedidoBorrador | null>;
-  actualizarItemsPedidoBorrador(conversacionId: string,items: PedidoBorradorItem[]): Promise<PedidoBorrador | null>;
+  actualizarPedidoBorrador(conversacionId:string, pedidoBorrador: PedidoBorrador, negocioId: string):Promise<Conversacion | null>;
+  obtenerPedidoBorrador(conversacionId:string, negocioId: string):Promise<PedidoBorrador | null>;
+  actualizarItemsPedidoBorrador(conversacionId: string,items: PedidoBorradorItem[], negocioId: string): Promise<PedidoBorrador | null>;
   cerrarConversaciones():Promise<void>;
+  listarConversaciones(negocioId: string):Promise<ConversacionResumen[]>;
 }

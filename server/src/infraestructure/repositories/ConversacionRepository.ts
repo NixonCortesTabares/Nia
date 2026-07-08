@@ -1,3 +1,4 @@
+import { ConversacionResumen, ConversacionResumenRow } from '../../application/conversaciones/ListarConversacionesUseCase';
 import pool from '../../config/db';
 import {
   Conversacion,
@@ -37,6 +38,46 @@ function mapConversacion(row: ConversacionRow): Conversacion {
 }
 
 export class ConversacionRepository implements IConversacionRepository {
+  async listarConversaciones(negocioId: string): Promise<ConversacionResumen[]> {
+     const result = await pool.query<ConversacionResumenRow>(
+      `SELECT
+         c.id,
+         c.estado,
+         cl.nombre AS cliente_nombre,
+         cl.telefono AS cliente_telefono,
+         ultimo.contenido AS ultimo_mensaje,
+         COALESCE(c.ultimo_mensaje_en, ultimo.enviado_en, c.iniciada_en) AS ultima_actividad_en,
+         c.iniciada_en AS creado_en
+       FROM conversaciones c
+       INNER JOIN clientes cl
+         ON cl.id = c.cliente_id
+        AND cl.negocio_id = c.negocio_id
+       LEFT JOIN LATERAL (
+         SELECT m.contenido, m.enviado_en
+         FROM mensajes m
+         WHERE m.conversacion_id = c.id
+           AND m.negocio_id = c.negocio_id
+         ORDER BY m.enviado_en DESC
+         LIMIT 1
+       ) ultimo ON true
+       WHERE c.negocio_id = $1
+       ORDER BY COALESCE(c.ultimo_mensaje_en, ultimo.enviado_en, c.iniciada_en) DESC
+       LIMIT 50`,
+      [negocioId]
+    );
+
+    return result.rows.map((row) => ({
+      id: row.id,
+      estado: row.estado,
+      cliente: {
+        nombre: row.cliente_nombre,
+        telefono: row.cliente_telefono,
+      },
+      ultimoMensaje: row.ultimo_mensaje,
+      ultimaActividadEn: row.ultima_actividad_en,
+      creadoEn: row.creado_en,
+    }));
+  }
 
   async cerrarConversaciones(): Promise<void> {
     const result = await pool.query(`
@@ -52,7 +93,8 @@ export class ConversacionRepository implements IConversacionRepository {
 
   async actualizarItemsPedidoBorrador(
     conversacionId: string,
-    items: PedidoBorradorItem[]
+    items: PedidoBorradorItem[],
+    negocioId: string
   ): Promise<PedidoBorrador | null> {
     const result = await pool.query<{
       pedido_borrador: PedidoBorrador;
@@ -66,9 +108,10 @@ export class ConversacionRepository implements IConversacionRepository {
       true
     )
     WHERE id = $1
+    AND negocio_id = $3 
     RETURNING pedido_borrador
     `,
-      [conversacionId, JSON.stringify(items)]
+      [conversacionId, JSON.stringify(items), negocioId]
     );
 
     if (result.rows.length === 0) {
@@ -77,7 +120,7 @@ export class ConversacionRepository implements IConversacionRepository {
 
     return result.rows[0].pedido_borrador;
   }
-  async obtenerPedidoBorrador(conversacionId: string): Promise<PedidoBorrador | null> {
+  async obtenerPedidoBorrador(conversacionId: string, negocioId: string): Promise<PedidoBorrador | null> {
     const result = await pool.query<{
       pedido_borrador: PedidoBorrador;
     }>(
@@ -85,9 +128,10 @@ export class ConversacionRepository implements IConversacionRepository {
     SELECT pedido_borrador
     FROM conversaciones
     WHERE id = $1
+    AND negocio_id = $2
     LIMIT 1
     `,
-      [conversacionId]
+      [conversacionId, negocioId]
     );
 
     if (result.rows.length === 0) {
@@ -99,15 +143,17 @@ export class ConversacionRepository implements IConversacionRepository {
 
   async actualizarPedidoBorrador(
     conversacionId: string,
-    pedidoBorrador: PedidoBorrador
+    pedidoBorrador: PedidoBorrador,
+    negocioId: string
   ): Promise<Conversacion | null> {
     const result = await pool.query<ConversacionRow>(
       `UPDATE conversaciones
      SET pedido_borrador = $2,
          ultimo_mensaje_en = NOW()
      WHERE id = $1
+     AND negocio_id = $3
      RETURNING id, negocio_id, cliente_id, tipo, estado, resumen, iniciada_en, cerrada_en, ultimo_mensaje_en, pedido_borrador`,
-      [conversacionId, JSON.stringify(pedidoBorrador)]
+      [conversacionId, JSON.stringify(pedidoBorrador), negocioId]
     );
 
     if (result.rows.length === 0) {

@@ -86,9 +86,7 @@ export function ConversacionesPage() {
       }
 
       const conversacionesResponse = await obtenerConversaciones()
-      const nuevasConversaciones = conversacionesResponse.conversaciones.filter(
-        (conversacion) => conversacion.estado !== 'resuelta'
-      )
+      const nuevasConversaciones = conversacionesResponse.conversaciones
       setConversaciones(nuevasConversaciones)
 
       const conversacionesAbiertas = JSON.parse(

@@ -1,25 +1,15 @@
-import OpenAI from "openai";
 import {
   Content,
-  FunctionCall,
   FunctionCallingConfigMode,
   GoogleGenAI,
-  Part,
 } from "@google/genai";
-import {
-  ChatCompletionMessageParam,
-  ChatCompletionMessageToolCall,
-  ChatCompletionToolMessageParam,
-} from "openai/resources/chat/completions";
 import { Negocio } from "../domain/entities/Negocio";
 import { Cliente } from "../domain/entities/Cliente";
-import { Conversacion, PedidoBorrador, PedidoBorradorItem } from "../domain/entities/Conversacion";
+import { Conversacion, PedidoBorrador } from "../domain/entities/Conversacion";
 import { Mensaje } from "../domain/entities/Mensaje";
-import { tools } from "./tools";
-import { toolsGroq } from "./tools.groq";
 import { toolsGemini } from "./tools.gemini";
 import { buildSystemPrompt } from "./prompt";
-import { ejecutarHerramienta, ToolResultado } from "./handlers";
+import { ejecutarHerramienta } from "./handlers";
 import { resolverPedidoBorradorUseCase } from "../application/conversaciones/ResolverPedidoBorradorUseCase";
 import { PedidoRepository } from "../infraestructure/repositories/PedidoRepository";
 
@@ -38,6 +28,17 @@ export type AgentTurnResult = {
   pedidoBorrador: PedidoBorrador;
   ok: boolean
 };
+
+type ParseAgentResult =
+  | {
+    ok: true;
+    data: AgentTurnResult;
+  }
+  | {
+    ok: false;
+    error: string;
+    rawText: string;
+  };
 
 const geminiClient = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
@@ -133,16 +134,24 @@ export async function runAgentTurnGemini(
 
       if (!finalText) {
         return {
-          mensajeCliente: "No pude generar una respuesta final en este momento.",
+          mensajeCliente: "Un momento por favor, tuve un problema organizando tu pedido. ¿Podrías repetirlo de forma breve?",
           pedidoBorrador: params.pedidoBorrador,
           ok: false
         };
       }
 
-      const respuestaAgente = parseAgentStructuredResponse(finalText, params.pedidoBorrador);
-      if (respuestaAgente.ok === false) {
+      const respuestaAgente = await parsearRespuestaAgenteConReintentos({
+        textoInicial: finalText,
+        model,
+        systemInstruction,
+        contents,
+        pedidoBorradorFallback: params.pedidoBorrador,
+      });
 
+      if (!respuestaAgente.ok) {
+        return respuestaAgente;
       }
+
       const resultadoResolucion = await resolverPedidoBorradorUseCase(respuestaAgente.pedidoBorrador, params.negocio.id);
 
       if (!resultadoResolucion.ok) {
@@ -221,8 +230,8 @@ La herramienta "${toolName}" no pudo completar la acción.
 Resultado de la herramienta:
 ${JSON.stringify(resultado, null, 2)}
 
-Intenta corregir el error que tienes, y reintenta la herramienta.
-En caso de que sea necesario, explícale al cliente de forma breve qué debe corregir o aclarar.
+Explícale al cliente de forma breve qué debe corregir o aclarar.
+No uses herramientas.
 No confirmes que el pedido fue registrado.
 
 Responde en el formato JSON estructurado obligatorio:
@@ -259,7 +268,7 @@ Responde en el formato JSON estructurado obligatorio:
         maxOutputTokens: 4096,
         toolConfig: {
           functionCallingConfig: {
-            mode: FunctionCallingConfigMode.AUTO,
+            mode: FunctionCallingConfigMode.NONE,
           },
         },
       },
@@ -275,12 +284,18 @@ Responde en el formato JSON estructurado obligatorio:
       };
     }
 
-    return parseAgentStructuredResponse(textoFinal, params.pedidoBorrador);
+    return await parsearRespuestaAgenteConReintentos({
+      textoInicial: textoFinal,
+      model,
+      systemInstruction,
+      contents: contentsSinTools,
+      pedidoBorradorFallback: params.pedidoBorrador,
+    });
   } catch (error) {
     console.error("Error en runAgentTurnGemini:", error);
 
     return {
-      mensajeCliente: "Tuve un problema procesando tu mensaje. Intenta de nuevo.",
+      mensajeCliente: construirMensajeErrorAgente(error, params.negocio),
       pedidoBorrador: params.pedidoBorrador,
       ok: false
     };
@@ -291,7 +306,7 @@ function hasContent(content: string | null | undefined): content is string {
   return typeof content === "string" && content.trim().length > 0;
 }
 
-function parseToolArguments(argumentsText: string | undefined): Record<string, unknown> {
+/*function parseToolArguments(argumentsText: string | undefined): Record<string, unknown> {
   try {
     const parsed = JSON.parse(argumentsText || "{}") as unknown;
 
@@ -309,7 +324,7 @@ function parseToolArguments(argumentsText: string | undefined): Record<string, u
     console.error("Error parseando argumentos de tool_call:", error);
     return {};
   }
-}
+}*/
 
 function mensajeActualYaEstaEnHistorial(
   historial: Mensaje[],
@@ -490,16 +505,25 @@ ${buildPedidoBorradorContext(pedidoBorrador, false)}`
   else {
     return `
     ${buildSystemPrompt(negocio, true)}
+
     El total del pedido del cliente es de $${pendientesPorCliente.total}
+    El estado del pedido del cliente es: ${pendientesPorCliente.estado}
+
+    Si el estado es pendiente: Dile que ya estamos trabajando en su pedido para enviarlo lo mas pronto posible,
+    que teniamos bastantes pedidos pendientes, que nos tenga un poco de paciencia por favor.
+
+    Si el estado es en_cocina: Dile que ya su pedido esta en cocina para que su comida salga fresca y recien hecha,
+    que por favor nos tenga un poco de paciencia.
+
+    Si el estado es en_ruta: Dile que ya su pedido va en camino hacia su direccion, que el domiciliario tiene otro pedido en
+    la misma ruta, entonces tal vez demora 5 minuticos mas de lo habitual.
+
     ${buildPedidoBorradorContext(pedidoBorrador, true)}
     `
   }
 }
 
-function parseAgentStructuredResponse(
-  text: string,
-  pedidoBorradorFallback: PedidoBorrador
-): AgentTurnResult {
+function parseAgentStructuredResponse(text: string): ParseAgentResult {
   try {
     const cleaned = limpiarJsonDelModelo(text);
     const parsed = JSON.parse(cleaned) as unknown;
@@ -514,29 +538,164 @@ function parseAgentStructuredResponse(
     };
 
     if (typeof data.mensaje_cliente !== "string" || !data.mensaje_cliente.trim()) {
-      throw new Error("La respuesta del agente no tiene mensaje_cliente válido.");
+      throw new Error("La respuesta del agente no tiene mensaje_cliente valido.");
     }
 
-    if (!esPedidoBorradorValido(data.pedido_borrador)) {
-      throw new Error("La respuesta del agente no tiene pedido_borrador válido.");
+    const pedidoBorrador = data.pedido_borrador;
+
+    if (!esPedidoBorradorValido(pedidoBorrador)) {
+      throw new Error("La respuesta del agente no tiene pedido_borrador valido.");
     }
 
     return {
-      mensajeCliente: data.mensaje_cliente.trim(),
-      pedidoBorrador: data.pedido_borrador,
-      ok: true
+      ok: true,
+      data: {
+        mensajeCliente: data.mensaje_cliente.trim(),
+        pedidoBorrador,
+        ok: true
+      }
     };
   } catch (error) {
     console.error("Error parseando respuesta JSON del agente:", error);
     console.error("Texto recibido del agente:", text);
 
     return {
-      mensajeCliente:
-        `Te has equivocado creando el JSON, aqui esta el error: ${error}`,
-      pedidoBorrador: pedidoBorradorFallback,
-      ok: false
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+      rawText: text
     };
   }
+}
+
+async function corregirJsonAgenteConGemini(params: {
+  model: string;
+  systemInstruction: string;
+  contents: Content[];
+  textoInvalido: string;
+  error: string;
+  pedidoBorradorFallback: PedidoBorrador;
+}): Promise<string | null> {
+  const promptCorreccion = `
+Tu respuesta anterior no fue JSON valido o no cumplio el formato obligatorio.
+
+Debes corregirla y responder UNICAMENTE con JSON valido.
+No uses markdown.
+No uses bloques de codigo.
+No uses comillas triples.
+No expliques nada.
+No escribas texto antes ni despues del JSON.
+No uses herramientas.
+No confirmes que el pedido fue registrado.
+
+Error detectado:
+${params.error}
+
+Pedido borrador valido anterior:
+${JSON.stringify(params.pedidoBorradorFallback, null, 2)}
+
+Respuesta invalida que debes corregir:
+${params.textoInvalido}
+
+Devuelve un JSON real, no copies el schema literalmente.
+
+La respuesta debe tener esta forma:
+
+{
+  "mensaje_cliente": "texto que se enviara al cliente",
+  "pedido_borrador": {
+    "nombre_cliente": null,
+    "telefono_cliente": null,
+    "tipo_entrega": "domicilio",
+    "direccion_entrega": null,
+    "metodo_pago": null,
+    "items": [],
+    "notas": null
+  }
+}
+
+Reglas obligatorias:
+- Debe funcionar con JSON.parse().
+- "mensaje_cliente" debe ser string no vacio.
+- "pedido_borrador" debe ser un objeto valido.
+- "items" debe ser un array.
+- Cada item debe tener nombre_producto, cantidad, extras y notas.
+- cantidad debe ser numero entero mayor o igual a 1.
+- extras debe ser [] si no hay extras.
+- notas debe ser null si no hay notas.
+- Conserva los datos validos del pedido_borrador anterior.
+`.trim();
+
+  const response = await geminiClient.models.generateContent({
+    model: params.model,
+    contents: [
+      ...params.contents.slice(-4),
+      {
+        role: "user",
+        parts: [{ text: promptCorreccion }],
+      },
+    ],
+    config: {
+      systemInstruction: params.systemInstruction,
+      maxOutputTokens: 4096,
+      toolConfig: {
+        functionCallingConfig: {
+          mode: FunctionCallingConfigMode.NONE,
+        },
+      },
+    },
+  });
+
+  return response.text?.trim() ?? null;
+}
+
+async function parsearRespuestaAgenteConReintentos(params: {
+  textoInicial: string;
+  model: string;
+  systemInstruction: string;
+  contents: Content[];
+  pedidoBorradorFallback: PedidoBorrador;
+}): Promise<AgentTurnResult> {
+  let textoActual = params.textoInicial;
+
+  for (let intento = 1; intento <= 3; intento++) {
+    const parseResult = parseAgentStructuredResponse(textoActual);
+
+    if (parseResult.ok) {
+      return parseResult.data;
+    }
+
+    console.warn("Intento de JSON fallido:", {
+      intento,
+      error: parseResult.error,
+    });
+
+    if (intento === 3) {
+      break;
+    }
+
+    try {
+      const textoCorregido = await corregirJsonAgenteConGemini({
+        model: params.model,
+        systemInstruction: params.systemInstruction,
+        contents: params.contents,
+        textoInvalido: parseResult.rawText,
+        error: parseResult.error,
+        pedidoBorradorFallback: params.pedidoBorradorFallback,
+      });
+
+      textoActual = textoCorregido ?? "";
+    } catch (error) {
+      console.error("Error intentando corregir JSON con Gemini:", error);
+      textoActual = "";
+    }
+  }
+
+  return {
+    mensajeCliente:
+      "Un momento por favor, tuve un problema organizando tu pedido. ¿Podrías repetirlo de forma breve?",
+    pedidoBorrador: params.pedidoBorradorFallback,
+    ok: false,
+  };
 }
 
 function limpiarJsonDelModelo(text: string): string {
@@ -618,7 +777,7 @@ function esPedidoBorradorValido(valor: unknown): valor is PedidoBorrador {
   return true;
 }
 
-function esToolResultado(valor: unknown): valor is ToolResultado {
+/*function esToolResultado(valor: unknown): valor is ToolResultado {
   if (!valor || typeof valor !== "object" || Array.isArray(valor)) {
     return false;
   }
@@ -629,4 +788,39 @@ function esToolResultado(valor: unknown): valor is ToolResultado {
     typeof resultado.ok === "boolean" &&
     typeof resultado.mensaje === "string"
   );
+}*/
+
+function esErrorAltaDemandaProveedor(error: unknown): boolean {
+  const texto = error instanceof Error
+    ? error.message
+    : JSON.stringify(error);
+
+  const textoNormalizado = texto.toLowerCase();
+
+  return (
+    textoNormalizado.includes("high demand") ||
+    textoNormalizado.includes("overloaded") ||
+    textoNormalizado.includes("model is overloaded") ||
+    textoNormalizado.includes("service unavailable") ||
+    textoNormalizado.includes("unavailable") ||
+    textoNormalizado.includes("resource_exhausted") ||
+    textoNormalizado.includes("rate limit") ||
+    textoNormalizado.includes("quota") ||
+    textoNormalizado.includes("429") ||
+    textoNormalizado.includes("503")
+  );
+}
+
+function construirMensajeErrorAgente(error: unknown, negocio: Negocio): string {
+  if (esErrorAltaDemandaProveedor(error)) {
+    const telefono = negocio.numtel?.trim();
+
+    if (telefono) {
+      return `Ahora mismo no estamos atendiendo por este número, podrías escribirnos al ${telefono} por favor?`;
+    }
+
+    return "Ahora mismo no estamos atendiendo por este número, por favor intenta comunicarte directamente con el restaurante.";
+  }
+
+  return "Un momento por favor, tuve un problema procesando tu mensaje. ¿Podrías repetirlo de forma breve?";
 }
