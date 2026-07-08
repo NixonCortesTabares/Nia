@@ -130,7 +130,10 @@ export class PedidoRepository implements IPedidoRepository {
 
       if (filtros.rango) {
         if (filtros.rango === 'hoy') {
-          condiciones.push(`p.creado_en >= CURRENT_DATE`);
+          condiciones.push(`
+            p.creado_en >= (((NOW() AT TIME ZONE 'America/Bogota')::date AT TIME ZONE 'America/Bogota') AT TIME ZONE 'UTC')
+            AND p.creado_en < ((((NOW() AT TIME ZONE 'America/Bogota')::date + INTERVAL '1 day') AT TIME ZONE 'America/Bogota') AT TIME ZONE 'UTC')
+          `);
         }
 
         if (filtros.rango === '7d') {
