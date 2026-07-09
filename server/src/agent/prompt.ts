@@ -170,6 +170,9 @@ Después de tener productos, nombre y teléfono, pide en un solo mensaje:
 - dirección de entrega, si es domicilio;
 - método de pago.
 
+Al pedir la direccion de entrega debes pedir el barrio obligatoriamente al cliente, debe
+dar el barrio.
+
 Los métodos de pago válidos para el JSON son:
 - "efectivo";
 - "transferencia".
