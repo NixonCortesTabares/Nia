@@ -6,6 +6,7 @@ import { IPedidoProductoRepository } from '../../../domain/repositories/IPedidoP
 import { IPedidoProductoExtraRepository } from '../../../domain/repositories/IPedidoProductoExtraRepository';
 import { CambiarEstadoPedidoUseCase } from '../../../application/pedidos/CambiarEstadoPedidoUseCase';
 import { EnviarMensajeEstadoPedidoActualizadoUseCase } from '../../../application/conversaciones/EnviarMensajeEstadoPedidoActualizadoUseCase';
+import { emitirEventoDashboard } from '../../realtime/sseHub';
 import { INegocioRepository } from '../../../domain/repositories/INegocioRepository';
 import { IClienteRepository } from '../../../domain/repositories/IClienteRepository';
 import { IConversacionRepository } from '../../../domain/repositories/IConversacionRepository';
@@ -222,6 +223,12 @@ export class PedidoController {
             const enviarMenEstPedActu = new EnviarMensajeEstadoPedidoActualizadoUseCase(this.negocioRepo, this.pedidoRepository, this.clienteRepo, this.conversacionRepo);
 
             await enviarMenEstPedActu.execute(estado, id, req.user.negocioId);
+
+            emitirEventoDashboard({
+                type: 'pedido_actualizado',
+                negocioId: req.user.negocioId,
+                pedidoId: id,
+            });
 
             return res.status(200).json({
                 ok: true,

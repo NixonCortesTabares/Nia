@@ -6,6 +6,7 @@ import { GetMenuUseCase } from '../menu/GetMenuUseCase';
 import { enviarMensaje } from '../../agent/whatsapp';
 import { pdfwhatsapp } from '../../agent/pdfwhatsapp';
 import { imgwhatsapp } from '../../agent/imgwhatsapp';
+import { emitirEventoDashboard } from '../../infraestructure/realtime/sseHub';
 const esperar = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 export interface WhatsappData {
     wamid: string,
@@ -48,6 +49,7 @@ export class ProcesarMensajeEntranteUseCase {
             cliente = clienteCreado;
         }
         let conversacionActiva = await this.conversacionRepository.buscarActivaYEscalada(cliente.id, negocio.id);
+        const esConversacionNueva = !conversacionActiva;
 
         
         if (!conversacionActiva) {
@@ -118,6 +120,12 @@ export class ProcesarMensajeEntranteUseCase {
             mimeType: data.mimeType,
             caption: data.caption,
         }, negocio.id);
+
+        emitirEventoDashboard({
+            type: esConversacionNueva ? 'conversacion_nueva' : 'mensaje_nuevo',
+            negocioId: negocio.id,
+            conversacionId: conversacionActiva.id,
+        });
 
         return {
             negocio,

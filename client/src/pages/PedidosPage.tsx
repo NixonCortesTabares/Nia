@@ -9,6 +9,7 @@ import {
   type Pedido,
 } from '../api/pedidosApi';
 import { getApiErrorMessage } from '../api/apiClient';
+import { useDashboardRealtime } from '../hooks/useDashboardRealtime';
 
 type PeriodoFiltro = 'Hoy' | 'Ayer' | 'Ultimos 7 dias' | 'Ultimo mes';
 
@@ -55,7 +56,6 @@ const estadosPedido: Array<{
   { backend: 'cancelado', label: 'Cancelado' },
 ];
 
-const POLLING_INTERVAL_MS = 30000;
 const BOGOTA_UTC_OFFSET_HOURS = 5;
 
 const estadoFrontToBackend: Record<EstadoPedidoFront, EstadoPedidoBackend> = {
@@ -168,6 +168,7 @@ export function PedidosPage() {
   const [updatingPedidoId, setUpdatingPedidoId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const isFetchingRef = useRef(false);
+  const refetchPedidosTimeoutRef = useRef<number | null>(null);
 
   const cargarPedidos = useCallback(async (options?: { silent?: boolean }) => {
     if (isFetchingRef.current) {
@@ -208,15 +209,19 @@ export function PedidosPage() {
 
   useEffect(() => {
     cargarPedidos();
-
-    const intervalId = window.setInterval(() => {
-      cargarPedidos({ silent: true });
-    }, POLLING_INTERVAL_MS);
-
     return () => {
-      window.clearInterval(intervalId);
+      if (refetchPedidosTimeoutRef.current) window.clearTimeout(refetchPedidosTimeoutRef.current);
     };
   }, [cargarPedidos]);
+
+  useDashboardRealtime({
+    onPedidoNuevo: () => {
+      if (refetchPedidosTimeoutRef.current) window.clearTimeout(refetchPedidosTimeoutRef.current);
+      refetchPedidosTimeoutRef.current = window.setTimeout(() => {
+        void cargarPedidos({ silent: true });
+      }, 500);
+    },
+  });
 
   async function changeStatus(id: string, estado: EstadoPedidoBackend) {
     const pedidosAnteriores = pedidos;

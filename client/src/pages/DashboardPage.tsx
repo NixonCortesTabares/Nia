@@ -9,6 +9,7 @@ import {
 } from '../api/pedidosApi';
 import { getApiErrorMessage } from '../api/apiClient';
 import { ProductoResumen } from '../utils/ProductoResumen';
+import { useDashboardRealtime } from '../hooks/useDashboardRealtime';
 
 type EstadoPedidoBackend =
   | 'pendiente'
@@ -34,7 +35,6 @@ const estados: Array<{
     { backend: 'entregado', label: 'Entregado' },
   ];
 
-const POLLING_INTERVAL_MS = 30000;
 const BOGOTA_UTC_OFFSET_HOURS = 5;
 
 function estadoToLabel(estado: string): EstadoPedidoFront {
@@ -110,6 +110,7 @@ export function DashboardPage() {
   const isFetchingRef = useRef(false);
   const pedidosAnterioresRef = useRef<Set<string> | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const refetchPedidosTimeoutRef = useRef<number | null>(null);
 
   const reproducirAlarma = useCallback(() => {
     const context = audioContextRef.current ?? new window.AudioContext();
@@ -199,15 +200,19 @@ export function DashboardPage() {
 
   useEffect(() => {
     cargarPedidos();
-
-    const intervalId = window.setInterval(() => {
-      cargarPedidos({ silent: true });
-    }, POLLING_INTERVAL_MS);
-
     return () => {
-      window.clearInterval(intervalId);
+      if (refetchPedidosTimeoutRef.current) window.clearTimeout(refetchPedidosTimeoutRef.current);
     };
   }, [cargarPedidos]);
+
+  useDashboardRealtime({
+    onPedidoNuevo: () => {
+      if (refetchPedidosTimeoutRef.current) window.clearTimeout(refetchPedidosTimeoutRef.current);
+      refetchPedidosTimeoutRef.current = window.setTimeout(() => {
+        void cargarPedidos({ silent: true });
+      }, 500);
+    },
+  });
 
   const resumen = useMemo(
     () => ({

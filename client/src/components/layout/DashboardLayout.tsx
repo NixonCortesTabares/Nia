@@ -5,6 +5,7 @@ import { Header } from './Header'
 import { Sidebar } from './Sidebar'
 import { Footer } from './Footer'
 import { MobileBottomNav } from './MobileBottomNav'
+import { useDashboardRealtime } from '../../hooks/useDashboardRealtime'
 
 export function DashboardLayout({ title, children }: { title: string; children: ReactNode }) {
   const [conversacionesPendientes, setConversacionesPendientes] = useState(0)
@@ -14,6 +15,7 @@ export function DashboardLayout({ title, children }: { title: string; children: 
   )
   const audioContextRef = useRef<AudioContext | null>(null)
   const requestEnCursoRef = useRef(false)
+  const refetchPendientesTimeoutRef = useRef<number | null>(null)
 
   const reproducirNotificacion = useCallback(() => {
     const context = audioContextRef.current ?? new window.AudioContext()
@@ -84,14 +86,24 @@ export function DashboardLayout({ title, children }: { title: string; children: 
     window.addEventListener('pointerdown', habilitarAudio, { once: true })
     window.addEventListener('nia:conversacion-abierta', conversacionAbierta)
     void actualizarPendientes()
-    const intervalId = window.setInterval(actualizarPendientes, 60000)
 
     return () => {
       window.removeEventListener('pointerdown', habilitarAudio)
       window.removeEventListener('nia:conversacion-abierta', conversacionAbierta)
-      window.clearInterval(intervalId)
+      if (refetchPendientesTimeoutRef.current) window.clearTimeout(refetchPendientesTimeoutRef.current)
     }
   }, [actualizarPendientes])
+
+  useDashboardRealtime({
+    onConversacionEscalada: () => {
+      if (refetchPendientesTimeoutRef.current) window.clearTimeout(refetchPendientesTimeoutRef.current)
+      refetchPendientesTimeoutRef.current = window.setTimeout(() => void actualizarPendientes(), 500)
+    },
+    onMensajeNuevo: () => {
+      if (refetchPendientesTimeoutRef.current) window.clearTimeout(refetchPendientesTimeoutRef.current)
+      refetchPendientesTimeoutRef.current = window.setTimeout(() => void actualizarPendientes(), 500)
+    },
+  })
 
   return (
     <div className="app-shell">

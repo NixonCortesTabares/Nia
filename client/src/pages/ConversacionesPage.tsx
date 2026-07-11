@@ -15,8 +15,7 @@ import {
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
-
-const POLLING_INTERVAL_MS = 60000
+import { useDashboardRealtime } from '../hooks/useDashboardRealtime'
 
 const estadoLabel: Record<string, string> = {
   activa: 'Activa',
@@ -63,6 +62,7 @@ export function ConversacionesPage() {
   const [conversacionesPorAtender, setConversacionesPorAtender] = useState<Set<string>>(new Set())
   const requestEnCursoRef = useRef(false)
   const seleccionadaIdRef = useRef<string | null>(null)
+  const refetchConversacionesTimeoutRef = useRef<number | null>(null)
 
   useEffect(() => {
     seleccionadaIdRef.current = seleccionadaId
@@ -132,13 +132,22 @@ export function ConversacionesPage() {
     cargarDatos()
   }, [cargarDatos])
 
-  useEffect(() => {
-    const intervalId = window.setInterval(() => {
-      cargarDatos(true)
-    }, POLLING_INTERVAL_MS)
+  useEffect(() => () => {
+    if (refetchConversacionesTimeoutRef.current) {
+      window.clearTimeout(refetchConversacionesTimeoutRef.current)
+    }
+  }, [])
 
-    return () => window.clearInterval(intervalId)
-  }, [cargarDatos])
+  useDashboardRealtime({
+    onMensajeNuevo: () => {
+      if (refetchConversacionesTimeoutRef.current) window.clearTimeout(refetchConversacionesTimeoutRef.current)
+      refetchConversacionesTimeoutRef.current = window.setTimeout(() => void cargarDatos(true), 500)
+    },
+    onConversacionEscalada: () => {
+      if (refetchConversacionesTimeoutRef.current) window.clearTimeout(refetchConversacionesTimeoutRef.current)
+      refetchConversacionesTimeoutRef.current = window.setTimeout(() => void cargarDatos(true), 500)
+    },
+  })
 
   async function seleccionarConversacion(id: string) {
     if (requestEnCursoRef.current) {
