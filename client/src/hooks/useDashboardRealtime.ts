@@ -33,8 +33,18 @@ export function useDashboardRealtime(params: UseDashboardRealtimeParams) {
   }, [params])
 
   useEffect(() => {
+    console.log('[Realtime] useEffect ejecutado')
+
     const token = window.localStorage.getItem('token')
-    if (!token) return
+
+    console.log('[Realtime] token encontrado:', Boolean(token))
+    console.log('[Realtime] API_URL:', API_URL)
+
+    if (!token) {
+      console.warn('[Realtime] No se abrió conexión porque no hay token')
+      return
+    }
+
 
     const controller = new AbortController()
 
@@ -46,19 +56,55 @@ export function useDashboardRealtime(params: UseDashboardRealtimeParams) {
       },
       signal: controller.signal,
       openWhenHidden: true,
+
+      async onopen(response) {
+        console.log('Intentando abrir conexión realtime:', {
+          status: response.status,
+          contentType: response.headers.get('content-type'),
+        })
+
+        if (!response.ok) {
+          console.error('No se pudo abrir conexión realtime:', response.status)
+          throw new Error(`Realtime error ${response.status}`)
+        }
+
+        const contentType = response.headers.get('content-type')
+
+        if (!contentType?.includes('text/event-stream')) {
+          console.error('La respuesta realtime no es SSE:', contentType)
+          throw new Error('La respuesta realtime no es text/event-stream')
+        }
+
+        console.log('Conexión realtime abierta correctamente')
+      },
+
       onmessage(event) {
+        console.log('Evento realtime bruto:', {
+          event: event.event,
+          data: event.data,
+        })
+
         if (!event.data || event.event === 'ping' || event.event === 'conectado') return
 
         try {
           const data = JSON.parse(event.data) as DashboardEvent
+
+          console.log('Evento realtime parseado:', data)
+
           paramsRef.current.onEvento?.(data)
 
-          if (data.type === 'mensaje_nuevo' || data.type === 'conversacion_nueva' || data.type === 'conversacion_actualizada') {
+          if (
+            data.type === 'mensaje_nuevo' ||
+            data.type === 'conversacion_nueva' ||
+            data.type === 'conversacion_actualizada'
+          ) {
             paramsRef.current.onMensajeNuevo?.(data)
           }
+
           if (data.type === 'pedido_nuevo' || data.type === 'pedido_actualizado') {
             paramsRef.current.onPedidoNuevo?.(data)
           }
+
           if (data.type === 'conversacion_escalada') {
             paramsRef.current.onConversacionEscalada?.(data)
           }
@@ -66,9 +112,12 @@ export function useDashboardRealtime(params: UseDashboardRealtimeParams) {
           console.error('Error parseando evento realtime:', error)
         }
       },
+
       onerror(error) {
         console.error('Error en conexión realtime:', error)
-        throw error
+
+        // No hacer throw aquí, porque puede cortar la reconexión.
+        return 5000
       },
     })
 

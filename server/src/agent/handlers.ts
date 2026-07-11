@@ -118,6 +118,7 @@ export async function ejecutarHerramienta(nombre: string, input: any,
                 negocioId,
                 pedidoId: pedidoGenerado.pedido.id,
             });
+            console.log('pedido_nuevo emitido')
             emitirEventoDashboard({
                 type: 'conversacion_actualizada',
                 negocioId,

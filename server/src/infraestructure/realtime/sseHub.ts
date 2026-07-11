@@ -18,32 +18,57 @@ export type DashboardEvent = {
 const clientesPorNegocio = new Map<string, Set<Response>>();
 
 export function registrarClienteSSE(negocioId: string, res: Response): void {
-  let clientes = clientesPorNegocio.get(negocioId);
+  let clientes = clientesPorNegocio.get(negocioId)
+
   if (!clientes) {
-    clientes = new Set<Response>();
-    clientesPorNegocio.set(negocioId, clientes);
+    clientes = new Set<Response>()
+    clientesPorNegocio.set(negocioId, clientes)
   }
-  clientes.add(res);
+
+  clientes.add(res)
+
+  console.log('Cliente SSE conectado:', {
+    negocioId,
+    totalClientes: clientes.size,
+  })
 
   res.on('close', () => {
-    clientes?.delete(res);
-    if (clientes?.size === 0) clientesPorNegocio.delete(negocioId);
-  });
+    clientes?.delete(res)
+
+    if (clientes?.size === 0) {
+      clientesPorNegocio.delete(negocioId)
+    }
+
+    console.log('Cliente SSE desconectado:', {
+      negocioId,
+      totalClientes: clientes?.size ?? 0,
+    })
+  })
 }
 
 export function emitirEventoDashboard(evento: DashboardEvent): void {
-  const clientes = clientesPorNegocio.get(evento.negocioId);
-  if (!clientes?.size) return;
+  const clientes = clientesPorNegocio.get(evento.negocioId)
 
-  const data = JSON.stringify(evento);
+  console.log('Intentando emitir evento SSE:', {
+    evento,
+    clientesConectados: clientes?.size ?? 0,
+  })
+
+  if (!clientes?.size) return
+
+  const data = JSON.stringify(evento)
+
   for (const res of clientes) {
     try {
-      res.write(`event: ${evento.type}\n`);
-      res.write(`data: ${data}\n\n`);
+      res.write(`event: ${evento.type}\n`)
+      res.write(`data: ${data}\n\n`)
     } catch (error) {
-      clientes.delete(res);
-      console.error('Error emitiendo evento SSE:', error);
+      clientes.delete(res)
+      console.error('Error emitiendo evento SSE:', error)
     }
   }
-  if (clientes.size === 0) clientesPorNegocio.delete(evento.negocioId);
+
+  if (clientes.size === 0) {
+    clientesPorNegocio.delete(evento.negocioId)
+  }
 }

@@ -215,7 +215,8 @@ export function PedidosPage() {
   }, [cargarPedidos]);
 
   useDashboardRealtime({
-    onPedidoNuevo: () => {
+    onPedidoNuevo: (evento) => {
+      console.log('Refecth pedido', evento)
       if (refetchPedidosTimeoutRef.current) window.clearTimeout(refetchPedidosTimeoutRef.current);
       refetchPedidosTimeoutRef.current = window.setTimeout(() => {
         void cargarPedidos({ silent: true });
