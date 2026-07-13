@@ -45,10 +45,12 @@ export function useDashboardRealtime(params: UseDashboardRealtimeParams) {
       return
     }
 
-
     const controller = new AbortController()
+    const realtimeUrl = `${API_URL}/realtime`
 
-    void fetchEventSource(`${API_URL}/realtime`, {
+    console.log('[Realtime] Abriendo conexión:', realtimeUrl)
+
+    void fetchEventSource(realtimeUrl, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -58,7 +60,7 @@ export function useDashboardRealtime(params: UseDashboardRealtimeParams) {
       openWhenHidden: true,
 
       async onopen(response) {
-        console.log('Intentando abrir conexión realtime:', {
+        console.log('[Realtime] Intentando abrir conexión:', {
           status: response.status,
           contentType: response.headers.get('content-type'),
         })
@@ -75,11 +77,11 @@ export function useDashboardRealtime(params: UseDashboardRealtimeParams) {
           throw new Error('La respuesta realtime no es text/event-stream')
         }
 
-        console.log('Conexión realtime abierta correctamente')
+        console.log('[Realtime] Conexión abierta correctamente')
       },
 
       onmessage(event) {
-        console.log('Evento realtime bruto:', {
+        console.log('[Realtime] Evento bruto:', {
           event: event.event,
           data: event.data,
         })
@@ -89,7 +91,7 @@ export function useDashboardRealtime(params: UseDashboardRealtimeParams) {
         try {
           const data = JSON.parse(event.data) as DashboardEvent
 
-          console.log('Evento realtime parseado:', data)
+          console.log('[Realtime] Evento parseado:', data)
 
           paramsRef.current.onEvento?.(data)
 
@@ -114,9 +116,13 @@ export function useDashboardRealtime(params: UseDashboardRealtimeParams) {
       },
 
       onerror(error) {
-        console.error('Error en conexión realtime:', error)
+        if (controller.signal.aborted) {
+          console.log('[Realtime] Conexión cerrada manualmente')
+          return
+        }
 
-        // No hacer throw aquí, porque puede cortar la reconexión.
+        console.error('[Realtime] Error en conexión:', error)
+
         return 5000
       },
     })

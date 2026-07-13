@@ -503,20 +503,29 @@ async function buildSystemPromptConBorrador(
 ${buildPedidoBorradorContext(pedidoBorrador, false)}`
   }
   else {
+    const ahora = new Date();
+
+    const tiempoDeCreado = ahora.getTime() - pendientesPorCliente.creadoEn.getTime();
+    console.log(tiempoDeCreado);
+    const tiempoDeCreadoMinuto = tiempoDeCreado/60000;
+
     return `
     ${buildSystemPrompt(negocio, true)}
 
     El total del pedido del cliente es de $${pendientesPorCliente.total}
     El estado del pedido del cliente es: ${pendientesPorCliente.estado}
 
-    Si el estado es pendiente: Dile que ya estamos trabajando en su pedido para enviarlo lo mas pronto posible,
-    que teniamos bastantes pedidos pendientes, que nos tenga un poco de paciencia por favor.
+    El pedido tiene ${tiempoDeCreadoMinuto} minutos de haberse creado.
 
-    Si el estado es en_cocina: Dile que ya su pedido esta en cocina para que su comida salga fresca y recien hecha,
+    Si es mas de 20 minutos pide que por favor un poquito de paciencia.
+    Si es de menos de 20 minutos sabemos que no estamos atrasados y aun estamos bien.
+
+    1) Si el estado es pendiente: Dile que ya estamos trabajando en su pedido para enviarlo lo mas pronto posible.
+
+    2) Si el estado es en_cocina: Dile que ya su pedido esta en cocina para que su comida salga fresca y recien hecha,
     que por favor nos tenga un poco de paciencia.
 
-    Si el estado es en_ruta: Dile que ya su pedido va en camino hacia su direccion, que el domiciliario tiene otro pedido en
-    la misma ruta, entonces tal vez demora 5 minuticos mas de lo habitual.
+    3) Si el estado es en_ruta: Dile que ya su pedido va en camino hacia su direccion.
 
     ${buildPedidoBorradorContext(pedidoBorrador, true)}
     `

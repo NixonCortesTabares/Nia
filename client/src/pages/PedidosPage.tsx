@@ -9,7 +9,7 @@ import {
   type Pedido,
 } from '../api/pedidosApi';
 import { getApiErrorMessage } from '../api/apiClient';
-import { useDashboardRealtime } from '../hooks/useDashboardRealtime';
+import type { DashboardEvent } from '../hooks/useDashboardRealtime';
 
 type PeriodoFiltro = 'Hoy' | 'Ayer' | 'Ultimos 7 dias' | 'Ultimo mes';
 
@@ -214,15 +214,37 @@ export function PedidosPage() {
     };
   }, [cargarPedidos]);
 
-  useDashboardRealtime({
-    onPedidoNuevo: (evento) => {
-      console.log('Refecth pedido', evento)
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const dashboardEvent = (event as CustomEvent<DashboardEvent>).detail;
+
+      console.log('[PedidosPage] Evento global recibido:', dashboardEvent);
+
+      if (
+        dashboardEvent.type !== 'pedido_nuevo'
+        && dashboardEvent.type !== 'pedido_actualizado'
+      ) {
+        return;
+      }
+
+      console.log('[PedidosPage] Refetch pedidos por evento:', dashboardEvent);
+
       if (refetchPedidosTimeoutRef.current) window.clearTimeout(refetchPedidosTimeoutRef.current);
       refetchPedidosTimeoutRef.current = window.setTimeout(() => {
         void cargarPedidos({ silent: true });
       }, 500);
-    },
-  });
+    };
+
+    window.addEventListener('nia:dashboard-event', handler);
+
+    return () => {
+      window.removeEventListener('nia:dashboard-event', handler);
+
+      if (refetchPedidosTimeoutRef.current) {
+        window.clearTimeout(refetchPedidosTimeoutRef.current);
+      }
+    };
+  }, [cargarPedidos]);
 
   async function changeStatus(id: string, estado: EstadoPedidoBackend) {
     const pedidosAnteriores = pedidos;

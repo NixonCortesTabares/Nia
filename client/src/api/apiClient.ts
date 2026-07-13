@@ -18,6 +18,23 @@ apiClient.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
+  const url = `${config.baseURL ?? ''}${config.url ?? ''}`;
+
+  if (
+    url.includes('/pedidos')
+    || url.includes('/conversaciones')
+    || url.includes('/mensajes')
+  ) {
+    console.log('[API REQUEST DEBUG]', {
+      method: config.method,
+      url,
+      params: config.params,
+      time: new Date().toLocaleTimeString(),
+    });
+
+    console.trace('[API REQUEST TRACE]');
+  }
+
   return config;
 });
 

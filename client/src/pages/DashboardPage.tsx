@@ -9,7 +9,7 @@ import {
 } from '../api/pedidosApi';
 import { getApiErrorMessage } from '../api/apiClient';
 import { ProductoResumen } from '../utils/ProductoResumen';
-import { useDashboardRealtime } from '../hooks/useDashboardRealtime';
+import type { DashboardEvent } from '../hooks/useDashboardRealtime';
 
 type EstadoPedidoBackend =
   | 'pendiente'
@@ -205,14 +205,37 @@ export function DashboardPage() {
     };
   }, [cargarPedidos]);
 
-  useDashboardRealtime({
-    onPedidoNuevo: () => {
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const dashboardEvent = (event as CustomEvent<DashboardEvent>).detail;
+
+      console.log('[DashboardPage] Evento global recibido:', dashboardEvent);
+
+      if (
+        dashboardEvent.type !== 'pedido_nuevo'
+        && dashboardEvent.type !== 'pedido_actualizado'
+      ) {
+        return;
+      }
+
+      console.log('[DashboardPage] Refetch por evento:', dashboardEvent);
+
       if (refetchPedidosTimeoutRef.current) window.clearTimeout(refetchPedidosTimeoutRef.current);
       refetchPedidosTimeoutRef.current = window.setTimeout(() => {
         void cargarPedidos({ silent: true });
       }, 500);
-    },
-  });
+    };
+
+    window.addEventListener('nia:dashboard-event', handler);
+
+    return () => {
+      window.removeEventListener('nia:dashboard-event', handler);
+
+      if (refetchPedidosTimeoutRef.current) {
+        window.clearTimeout(refetchPedidosTimeoutRef.current);
+      }
+    };
+  }, [cargarPedidos]);
 
   const resumen = useMemo(
     () => ({

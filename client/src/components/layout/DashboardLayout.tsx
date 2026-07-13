@@ -95,11 +95,18 @@ export function DashboardLayout({ title, children }: { title: string; children: 
   }, [actualizarPendientes])
 
   useDashboardRealtime({
-    onConversacionEscalada: () => {
-      if (refetchPendientesTimeoutRef.current) window.clearTimeout(refetchPendientesTimeoutRef.current)
-      refetchPendientesTimeoutRef.current = window.setTimeout(() => void actualizarPendientes(), 500)
+    onEvento: (evento) => {
+      console.log('[DashboardLayout] Evento realtime recibido:', evento)
+
+      window.dispatchEvent(
+        new CustomEvent('nia:dashboard-event', {
+          detail: evento,
+        })
+      )
     },
-    onMensajeNuevo: () => {
+    onConversacionEscalada: (evento) => {
+      console.log('[DashboardLayout] Conversación escalada:', evento)
+
       if (refetchPendientesTimeoutRef.current) window.clearTimeout(refetchPendientesTimeoutRef.current)
       refetchPendientesTimeoutRef.current = window.setTimeout(() => void actualizarPendientes(), 500)
     },

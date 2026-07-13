@@ -7,6 +7,8 @@ import { enviarMensaje } from '../../agent/whatsapp';
 import { pdfwhatsapp } from '../../agent/pdfwhatsapp';
 import { imgwhatsapp } from '../../agent/imgwhatsapp';
 import { emitirEventoDashboard } from '../../infraestructure/realtime/sseHub';
+import { ObtenerFotosMenuUseCase } from '../negocios/ObtenerFotosMenuUseCase';
+import { FotosNegocioRepository } from '../../infraestructure/repositories/FotosNegocioRepository';
 const esperar = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 export interface WhatsappData {
     wamid: string,
@@ -50,7 +52,6 @@ export class ProcesarMensajeEntranteUseCase {
         }
         let conversacionActiva = await this.conversacionRepository.buscarActivaYEscalada(cliente.id, negocio.id);
         const esConversacionNueva = !conversacionActiva;
-
         
         if (!conversacionActiva) {
             const crearConversacion = await this.conversacionRepository.crear({
@@ -77,30 +78,24 @@ export class ProcesarMensajeEntranteUseCase {
                     });
                 }
                 else if (menu.tipomenu === 'foto') {
-                    const fotosMenu = [
-                        'https://res.cloudinary.com/dprp8axew/image/upload/v1782577355/WhatsApp_Image_2026-06-27_at_11.17.40_yl0ntx.jpg',
-                        'https://res.cloudinary.com/dprp8axew/image/upload/v1782577360/WhatsApp_Image_2026-06-27_at_11.17.40_1_pmihj8.jpg',
-                        'https://res.cloudinary.com/dprp8axew/image/upload/v1782577367/WhatsApp_Image_2026-06-27_at_11.17.40_2_cu45q4.jpg',
-                    ];
-
-                    for (const imageUrl of fotosMenu) {
+                    const fotosNegocioRepo  = new FotosNegocioRepository()
+                    const obtenerFotosMenuUseCase = new ObtenerFotosMenuUseCase(fotosNegocioRepo);
+                    const fotos = await obtenerFotosMenuUseCase.execute(negocio.id);
+                    
+                    for (const foto of fotos) {
                         await imgwhatsapp({
                             phoneId: data.phoneId,
                             to: data.from,
-                            imageUrl,
+                            imageUrl: foto.linkFoto
                         });
-
                         // Pequeña pausa para evitar que WhatsApp entregue las fotos fuera de orden.
                         await esperar(800);
                     }
-
                     // Pausa extra antes de que el webhook envíe el saludo automático.
                     await esperar(2500);
                 }
             }
-
         }
-
         const conversacionActualizada = await this.conversacionRepository.actualizar(conversacionActiva.id, {
             ultimoMensajeEn: new Date()
         });
