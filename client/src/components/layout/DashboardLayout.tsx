@@ -106,7 +106,6 @@ export function DashboardLayout({ title, children }: { title: string; children: 
     },
     onConversacionEscalada: (evento) => {
       console.log('[DashboardLayout] Conversación escalada:', evento)
-
       if (refetchPendientesTimeoutRef.current) window.clearTimeout(refetchPendientesTimeoutRef.current)
       refetchPendientesTimeoutRef.current = window.setTimeout(() => void actualizarPendientes(), 500)
     },
