@@ -45,10 +45,20 @@ export function useDashboardRealtime(params: UseDashboardRealtimeParams) {
       return
     }
 
-    const controller = new AbortController()
-    const realtimeUrl = `${API_URL}/realtime`
+    let clientId = window.sessionStorage.getItem('nia-realtime-client-id')
 
-    console.log('[Realtime] Abriendo conexión:', realtimeUrl)
+    if (!clientId) {
+      clientId = window.crypto.randomUUID()
+      window.sessionStorage.setItem('nia-realtime-client-id', clientId)
+    }
+
+    const controller = new AbortController()
+    const realtimeUrl = `${API_URL}/realtime?clientId=${encodeURIComponent(clientId)}`
+
+    console.log('[Realtime Local] API_URL:', API_URL)
+    console.log('[Realtime Local] URL final:', realtimeUrl)
+    console.log('[Realtime Local] Client ID:', clientId)
+    console.log('[Realtime Local] URL:', realtimeUrl)
 
     void fetchEventSource(realtimeUrl, {
       method: 'GET',
@@ -60,7 +70,7 @@ export function useDashboardRealtime(params: UseDashboardRealtimeParams) {
       openWhenHidden: true,
 
       async onopen(response) {
-        console.log('[Realtime] Intentando abrir conexión:', {
+        console.log('[Realtime Local] Conexión abierta:', {
           status: response.status,
           contentType: response.headers.get('content-type'),
         })
@@ -77,11 +87,11 @@ export function useDashboardRealtime(params: UseDashboardRealtimeParams) {
           throw new Error('La respuesta realtime no es text/event-stream')
         }
 
-        console.log('[Realtime] Conexión abierta correctamente')
+        console.log('[Realtime Local] Conexión abierta correctamente')
       },
 
       onmessage(event) {
-        console.log('[Realtime] Evento bruto:', {
+        console.log('[Realtime Local] Evento bruto:', {
           event: event.event,
           data: event.data,
         })
@@ -91,7 +101,7 @@ export function useDashboardRealtime(params: UseDashboardRealtimeParams) {
         try {
           const data = JSON.parse(event.data) as DashboardEvent
 
-          console.log('[Realtime] Evento parseado:', data)
+          console.log('[Realtime Local] Evento parseado:', data)
 
           paramsRef.current.onEvento?.(data)
 
@@ -117,14 +127,18 @@ export function useDashboardRealtime(params: UseDashboardRealtimeParams) {
 
       onerror(error) {
         if (controller.signal.aborted) {
-          console.log('[Realtime] Conexión cerrada manualmente')
+          console.log('[Realtime Local] Conexión cerrada manualmente')
           return
         }
 
-        console.error('[Realtime] Error en conexión:', error)
+        console.error('[Realtime Local] Error en conexión:', error)
 
         return 5000
       },
+    }).catch((error: unknown) => {
+      if (controller.signal.aborted) return
+
+      console.error('[Realtime Local] La conexión terminó:', error)
     })
 
     return () => controller.abort()

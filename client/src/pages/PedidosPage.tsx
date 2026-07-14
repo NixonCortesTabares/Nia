@@ -227,7 +227,7 @@ export function PedidosPage() {
         return;
       }
 
-      console.log('[PedidosPage] Refetch pedidos por evento:', dashboardEvent);
+      console.log('[PedidosPage] Ejecutando refetch por SSE:', dashboardEvent);
 
       if (refetchPedidosTimeoutRef.current) window.clearTimeout(refetchPedidosTimeoutRef.current);
       refetchPedidosTimeoutRef.current = window.setTimeout(() => {

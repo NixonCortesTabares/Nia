@@ -218,7 +218,7 @@ export function DashboardPage() {
         return;
       }
 
-      console.log('[DashboardPage] Refetch por evento:', dashboardEvent);
+      console.log('[DashboardPage] Ejecutando refetch por SSE:', dashboardEvent);
 
       if (refetchPedidosTimeoutRef.current) window.clearTimeout(refetchPedidosTimeoutRef.current);
       refetchPedidosTimeoutRef.current = window.setTimeout(() => {

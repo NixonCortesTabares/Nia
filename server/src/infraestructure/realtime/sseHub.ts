@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import { randomUUID } from 'node:crypto';
 
 export type DashboardEventType =
   | 'mensaje_nuevo'
@@ -15,42 +16,76 @@ export type DashboardEvent = {
   pedidoId?: string;
 };
 
-const clientesPorNegocio = new Map<string, Set<Response>>();
+export type SseClient = {
+  response: Response;
+  clientId: string;
+  connectionId: string;
+};
 
-export function registrarClienteSSE(negocioId: string, res: Response): void {
+const clientesPorNegocio = new Map<string, Set<SseClient>>();
+
+export function registrarClienteSSE(input: {
+  negocioId: string;
+  clientId: string;
+  response: Response;
+}): SseClient {
+  const { negocioId, clientId, response } = input;
   let clientes = clientesPorNegocio.get(negocioId)
 
   if (!clientes) {
-    clientes = new Set<Response>()
+    clientes = new Set<SseClient>()
     clientesPorNegocio.set(negocioId, clientes)
   }
 
-  clientes.add(res)
+  const cliente: SseClient = {
+    response,
+    clientId,
+    connectionId: randomUUID(),
+  }
 
-  console.log('Cliente SSE conectado:', {
+  clientes.add(cliente)
+
+  console.log('[SSE Local] Cliente conectado:', {
     negocioId,
+    clientId,
+    connectionId: cliente.connectionId,
+    processPid: process.pid,
     totalClientes: clientes.size,
   })
 
-  res.on('close', () => {
-    clientes?.delete(res)
+  return cliente
+}
 
-    if (clientes?.size === 0) {
-      clientesPorNegocio.delete(negocioId)
-    }
+export function eliminarClienteSSE(input: {
+  negocioId: string;
+  cliente: SseClient;
+}): void {
+  const { negocioId, cliente } = input;
+  const clientes = clientesPorNegocio.get(negocioId)
 
-    console.log('Cliente SSE desconectado:', {
-      negocioId,
-      totalClientes: clientes?.size ?? 0,
-    })
+  if (!clientes) return
+
+  clientes.delete(cliente)
+
+  if (clientes.size === 0) {
+    clientesPorNegocio.delete(negocioId)
+  }
+
+  console.log('[SSE Local] Cliente desconectado:', {
+    negocioId,
+    clientId: cliente.clientId,
+    connectionId: cliente.connectionId,
+    processPid: process.pid,
+    totalClientes: clientes.size,
   })
 }
 
 export function emitirEventoDashboard(evento: DashboardEvent): void {
   const clientes = clientesPorNegocio.get(evento.negocioId)
 
-  console.log('Intentando emitir evento SSE:', {
+  console.log('[SSE Local] Intentando emitir:', {
     evento,
+    processPid: process.pid,
     clientesConectados: clientes?.size ?? 0,
   })
 
@@ -58,13 +93,46 @@ export function emitirEventoDashboard(evento: DashboardEvent): void {
 
   const data = JSON.stringify(evento)
 
-  for (const res of clientes) {
+  for (const cliente of [...clientes]) {
+    const res = cliente.response
+
+    if (res.destroyed || res.writableEnded) {
+      console.warn('[SSE Local] Conexión inválida:', {
+        clientId: cliente.clientId,
+        connectionId: cliente.connectionId,
+        destroyed: res.destroyed,
+        writableEnded: res.writableEnded,
+      })
+
+      clientes.delete(cliente)
+      continue
+    }
+
     try {
-      res.write(`event: ${evento.type}\n`)
-      res.write(`data: ${data}\n\n`)
+      const eventWriteOk = res.write(`event: ${evento.type}\n`)
+      const dataWriteOk = res.write(`data: ${data}\n\n`)
+
+      ;(res as unknown as { flush?: () => void }).flush?.()
+
+      console.log('[SSE Local] Evento escrito:', {
+        type: evento.type,
+        negocioId: evento.negocioId,
+        clientId: cliente.clientId,
+        connectionId: cliente.connectionId,
+        eventWriteOk,
+        dataWriteOk,
+        destroyed: res.destroyed,
+        writableEnded: res.writableEnded,
+      })
     } catch (error) {
-      clientes.delete(res)
-      console.error('Error emitiendo evento SSE:', error)
+      console.error('[SSE Local] Error escribiendo:', {
+        type: evento.type,
+        clientId: cliente.clientId,
+        connectionId: cliente.connectionId,
+        error,
+      })
+
+      clientes.delete(cliente)
     }
   }
 

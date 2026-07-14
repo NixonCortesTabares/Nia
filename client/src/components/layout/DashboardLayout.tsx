@@ -97,6 +97,7 @@ export function DashboardLayout({ title, children }: { title: string; children: 
   useDashboardRealtime({
     onEvento: (evento) => {
       console.log('[DashboardLayout] Evento realtime recibido:', evento)
+      console.log('[DashboardLayout] Redistribuyendo evento global:', evento)
 
       window.dispatchEvent(
         new CustomEvent('nia:dashboard-event', {
