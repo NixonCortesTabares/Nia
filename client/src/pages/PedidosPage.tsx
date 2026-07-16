@@ -9,7 +9,6 @@ import {
   type Pedido,
 } from '../api/pedidosApi';
 import { getApiErrorMessage } from '../api/apiClient';
-import type { DashboardEvent } from '../hooks/useDashboardRealtime';
 
 type PeriodoFiltro = 'Hoy' | 'Ayer' | 'Ultimos 7 dias' | 'Ultimo mes';
 
@@ -168,7 +167,6 @@ export function PedidosPage() {
   const [updatingPedidoId, setUpdatingPedidoId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const isFetchingRef = useRef(false);
-  const refetchPedidosTimeoutRef = useRef<number | null>(null);
 
   const cargarPedidos = useCallback(async (options?: { silent?: boolean }) => {
     if (isFetchingRef.current) {
@@ -209,40 +207,15 @@ export function PedidosPage() {
 
   useEffect(() => {
     cargarPedidos();
-    return () => {
-      if (refetchPedidosTimeoutRef.current) window.clearTimeout(refetchPedidosTimeoutRef.current);
-    };
   }, [cargarPedidos]);
 
   useEffect(() => {
-    const handler = (event: Event) => {
-      const dashboardEvent = (event as CustomEvent<DashboardEvent>).detail;
+    const actualizarPedidos = () => void cargarPedidos({ silent: true });
 
-      console.log('[PedidosPage] Evento global recibido:', dashboardEvent);
-
-      if (
-        dashboardEvent.type !== 'pedido_nuevo'
-        && dashboardEvent.type !== 'pedido_actualizado'
-      ) {
-        return;
-      }
-
-      console.log('[PedidosPage] Ejecutando refetch por SSE:', dashboardEvent);
-
-      if (refetchPedidosTimeoutRef.current) window.clearTimeout(refetchPedidosTimeoutRef.current);
-      refetchPedidosTimeoutRef.current = window.setTimeout(() => {
-        void cargarPedidos({ silent: true });
-      }, 500);
-    };
-
-    window.addEventListener('nia:dashboard-event', handler);
+    window.addEventListener('nia:pedidos-poll', actualizarPedidos);
 
     return () => {
-      window.removeEventListener('nia:dashboard-event', handler);
-
-      if (refetchPedidosTimeoutRef.current) {
-        window.clearTimeout(refetchPedidosTimeoutRef.current);
-      }
+      window.removeEventListener('nia:pedidos-poll', actualizarPedidos);
     };
   }, [cargarPedidos]);
 

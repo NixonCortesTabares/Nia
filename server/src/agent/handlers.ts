@@ -18,7 +18,6 @@ import { enviarMensaje } from "./whatsapp";
 import { MetodosDePagoRepository } from "../infraestructure/repositories/MetodosDePagoRepository";
 import { ObtenerMetodosPagoUseCase } from "../application/negocios/ObtenerMetodosPagoUseCase";
 import { construirTextoMetodosTransf } from "../application/utils/construirTextoMetodosTransfer";
-import { emitirEventoDashboard } from "../infraestructure/realtime/sseHub";
 
 function textoValido(valor: unknown): valor is string {
     return typeof valor === 'string' && valor.trim().length > 0;
@@ -56,11 +55,6 @@ export async function ejecutarHerramienta(nombre: string, input: any,
                     ok: false, mensaje: 'No se pudo actualizar la conversacion'
                 };
             }
-            emitirEventoDashboard({
-                type: 'conversacion_escalada',
-                negocioId,
-                conversacionId,
-            });
             return { ok: true, mensaje: 'Una persona te atenderá pronto.' };
         }
 
@@ -111,18 +105,6 @@ export async function ejecutarHerramienta(nombre: string, input: any,
                     notas: item.notas ?? null,
                 })),
                 notas: input.notas ?? null,
-            });
-
-            emitirEventoDashboard({
-                type: 'pedido_nuevo',
-                negocioId,
-                pedidoId: pedidoGenerado.pedido.id,
-            });
-            console.log('pedido_nuevo emitido')
-            emitirEventoDashboard({
-                type: 'conversacion_actualizada',
-                negocioId,
-                conversacionId,
             });
 
             const resumenItems = pedidoGenerado.productos

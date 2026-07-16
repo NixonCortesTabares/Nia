@@ -414,7 +414,7 @@ la información de lo que pidió el cliente es el JSON construido que se te est�
 
 TIEMPO DE ENTREGA
 
-Si el cliente pregunta cuánto se demora el pedido, responde que normalmente puede tardar entre 25 y 40 minutos aproximadamente, dependiendo del flujo del restaurante.
+Si el cliente pregunta cuánto se demora el pedido, responde que normalmente puede tardar entre 20 y 30 minutos aproximadamente, dependiendo del flujo del restaurante.
 
 DESPEDIDAS Y AGRADECIMIENTOS
 

@@ -8,7 +8,6 @@ import { enviarMensaje } from "./whatsapp";
 import { PedidoBorrador } from "../domain/entities/Conversacion";
 import { MenuProductoRow, ProductoRepository } from "../infraestructure/repositories/ProductoRepository";
 import { ConstruirMenuUseCase } from "../application/menu/ConstruirMenuUseCase";
-import { emitirEventoDashboard } from "../infraestructure/realtime/sseHub";
 
 const WORKER_INTERVAL_MS = 3000;
 const PENDING_LIMIT = 10;
@@ -191,12 +190,6 @@ async function procesarConversacionPendiente(
       contenido: respuesta.mensajeCliente,
       wamid: wamidRta,
     }, negocio.id);
-
-    emitirEventoDashboard({
-      type: 'mensaje_nuevo',
-      negocioId: negocio.id,
-      conversacionId: conversacion.id,
-    });
 
     //console.log("Respuesta enviada por worker");
   }

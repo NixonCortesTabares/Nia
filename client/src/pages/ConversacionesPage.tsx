@@ -15,7 +15,6 @@ import {
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
-import type { DashboardEvent } from '../hooks/useDashboardRealtime'
 
 const estadoLabel: Record<string, string> = {
   activa: 'Activa',
@@ -62,7 +61,6 @@ export function ConversacionesPage() {
   const [conversacionesPorAtender, setConversacionesPorAtender] = useState<Set<string>>(new Set())
   const requestEnCursoRef = useRef(false)
   const seleccionadaIdRef = useRef<string | null>(null)
-  const refetchConversacionesTimeoutRef = useRef<number | null>(null)
 
   useEffect(() => {
     seleccionadaIdRef.current = seleccionadaId
@@ -130,38 +128,6 @@ export function ConversacionesPage() {
 
   useEffect(() => {
     cargarDatos()
-  }, [cargarDatos])
-
-  useEffect(() => {
-    const handler = (event: Event) => {
-      const dashboardEvent = (event as CustomEvent<DashboardEvent>).detail
-
-      console.log('[ConversacionesPage] Evento global recibido:', dashboardEvent)
-
-      if (
-        dashboardEvent.type !== 'mensaje_nuevo'
-        && dashboardEvent.type !== 'conversacion_nueva'
-        && dashboardEvent.type !== 'conversacion_actualizada'
-        && dashboardEvent.type !== 'conversacion_escalada'
-      ) {
-        return
-      }
-
-      console.log('[ConversacionesPage] Refetch por evento:', dashboardEvent)
-
-      if (refetchConversacionesTimeoutRef.current) window.clearTimeout(refetchConversacionesTimeoutRef.current)
-      refetchConversacionesTimeoutRef.current = window.setTimeout(() => void cargarDatos(true), 500)
-    }
-
-    window.addEventListener('nia:dashboard-event', handler)
-
-    return () => {
-      window.removeEventListener('nia:dashboard-event', handler)
-
-      if (refetchConversacionesTimeoutRef.current) {
-        window.clearTimeout(refetchConversacionesTimeoutRef.current)
-      }
-    }
   }, [cargarDatos])
 
   async function seleccionarConversacion(id: string) {

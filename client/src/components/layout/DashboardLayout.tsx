@@ -5,7 +5,8 @@ import { Header } from './Header'
 import { Sidebar } from './Sidebar'
 import { Footer } from './Footer'
 import { MobileBottomNav } from './MobileBottomNav'
-import { useDashboardRealtime } from '../../hooks/useDashboardRealtime'
+
+const PEDIDOS_POLLING_INTERVAL_MS = 30000
 
 export function DashboardLayout({ title, children }: { title: string; children: ReactNode }) {
   const [conversacionesPendientes, setConversacionesPendientes] = useState(0)
@@ -15,7 +16,6 @@ export function DashboardLayout({ title, children }: { title: string; children: 
   )
   const audioContextRef = useRef<AudioContext | null>(null)
   const requestEnCursoRef = useRef(false)
-  const refetchPendientesTimeoutRef = useRef<number | null>(null)
 
   const reproducirNotificacion = useCallback(() => {
     const context = audioContextRef.current ?? new window.AudioContext()
@@ -90,27 +90,16 @@ export function DashboardLayout({ title, children }: { title: string; children: 
     return () => {
       window.removeEventListener('pointerdown', habilitarAudio)
       window.removeEventListener('nia:conversacion-abierta', conversacionAbierta)
-      if (refetchPendientesTimeoutRef.current) window.clearTimeout(refetchPendientesTimeoutRef.current)
     }
   }, [actualizarPendientes])
 
-  useDashboardRealtime({
-    onEvento: (evento) => {
-      console.log('[DashboardLayout] Evento realtime recibido:', evento)
-      console.log('[DashboardLayout] Redistribuyendo evento global:', evento)
+  useEffect(() => {
+    const pollingId = window.setInterval(() => {
+      window.dispatchEvent(new Event('nia:pedidos-poll'))
+    }, PEDIDOS_POLLING_INTERVAL_MS)
 
-      window.dispatchEvent(
-        new CustomEvent('nia:dashboard-event', {
-          detail: evento,
-        })
-      )
-    },
-    onConversacionEscalada: (evento) => {
-      console.log('[DashboardLayout] Conversación escalada:', evento)
-      if (refetchPendientesTimeoutRef.current) window.clearTimeout(refetchPendientesTimeoutRef.current)
-      refetchPendientesTimeoutRef.current = window.setTimeout(() => void actualizarPendientes(), 500)
-    },
-  })
+    return () => window.clearInterval(pollingId)
+  }, [])
 
   return (
     <div className="app-shell">
