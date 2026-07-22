@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authMiddleware } from "../../middlewares/auth.middleware";
-import { EventoController } from "../../controllers/EventoControlller";
+import { EventoController } from "../../controllers/EventoController";
 
 const router = Router();
 export const controllerEventos = new EventoController();
