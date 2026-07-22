@@ -31,7 +31,7 @@ export const authMiddleware = (
   }
 
   try {
-    const decoded = jwt.verify(token, jwtSecret) as JwtPayload;
+    const decoded: JwtPayload = jwt.verify(token, jwtSecret) as JwtPayload;
 
     req.user = {
       usuarioId: decoded.usuarioId,

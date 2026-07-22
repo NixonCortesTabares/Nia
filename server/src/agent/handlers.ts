@@ -157,9 +157,11 @@ export async function ejecutarHerramienta(nombre: string, input: any,
                 lineasMensaje.push(textoAñadido)
             }
             lineasMensaje.push("");
-            lineasMensaje.push("Nos demoramos entre 25 y 40 minutos.");
+            lineasMensaje.push("Nos demoramos entre 20 y 30 minutos.");
             lineasMensaje.push(`Si tienes alguna solicitud, queja, reclamo, por favor llama: ${negocio?.numtel}`);
             const mensaje = lineasMensaje.join("\n").trim();
+
+            
             return { ok: true, mensaje};
 
         }

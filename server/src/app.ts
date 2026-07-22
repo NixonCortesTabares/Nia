@@ -42,7 +42,7 @@ app.use(express.json({
 }));
 
 const apiRouter = Router();
-
+const clientesEsperando: Response[] = [];
 apiRouter.use('/auth', authRoutes);
 apiRouter.use('/webhook', whatsappWebhook);
 apiRouter.use('/productos', productRoutes);

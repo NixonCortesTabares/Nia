@@ -1,5 +1,6 @@
 import { EstadoPedido, Pedido } from '../../domain/entities/Pedido';
 import { IPedidoRepository } from '../../domain/repositories/IPedidoRepository';
+import { CerrarConversacionUseCase } from '../conversaciones/CerrarConversacionUseCase';
 
 export interface CambiarEstadoPedidoUseCaseDTO {
   negocioId: string;
@@ -16,7 +17,6 @@ export class CambiarEstadoPedidoUseCase {
     if (!pedido) {
       return null;
     }
-
     return this.pedidoRepository.cambiarEstado(input.pedidoId, input.negocioId, input.estado);
   }
 }

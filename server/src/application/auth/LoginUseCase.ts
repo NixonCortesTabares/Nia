@@ -15,6 +15,7 @@ export interface LoginResult {
 }
 
 export class LoginUseCase {
+  
   constructor(private usuarioRepository: IUsuarioRepository) {}
 
   async execute(data: LoginDTO): Promise<LoginResult> {

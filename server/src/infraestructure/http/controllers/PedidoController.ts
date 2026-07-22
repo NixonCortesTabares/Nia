@@ -9,11 +9,12 @@ import { EnviarMensajeEstadoPedidoActualizadoUseCase } from '../../../applicatio
 import { INegocioRepository } from '../../../domain/repositories/INegocioRepository';
 import { IClienteRepository } from '../../../domain/repositories/IClienteRepository';
 import { IConversacionRepository } from '../../../domain/repositories/IConversacionRepository';
+import { CerrarConversacionUseCase } from '../../../application/conversaciones/CerrarConversacionUseCase';
 
 export class PedidoController {
     constructor(private pedidoRepository: IPedidoRepository, private pedidoProductoRepo: IPedidoProductoRepository,
         private pedidoProdExtraRepo: IPedidoProductoExtraRepository, private negocioRepo: INegocioRepository,
-        private clienteRepo: IClienteRepository, private conversacionRepo: IConversacionRepository ) { }
+        private clienteRepo: IClienteRepository, private conversacionRepo: IConversacionRepository) { }
 
     ListarPedidosPorNegocio = async (req: Request, res: Response) => {
         try {
@@ -212,6 +213,11 @@ export class PedidoController {
                 estado,
             });
 
+            if (pedido) {
+                const cerrarConverUseCase = new CerrarConversacionUseCase(this.conversacionRepo);
+                await cerrarConverUseCase.execute(pedido.conversacionId, estado);
+            }
+
             if (!pedido) {
                 return res.status(404).json({
                     ok: false,
@@ -220,7 +226,6 @@ export class PedidoController {
             }
 
             const enviarMenEstPedActu = new EnviarMensajeEstadoPedidoActualizadoUseCase(this.negocioRepo, this.pedidoRepository, this.clienteRepo, this.conversacionRepo);
-
             await enviarMenEstPedActu.execute(estado, id, req.user.negocioId);
 
             return res.status(200).json({
