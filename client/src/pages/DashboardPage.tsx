@@ -9,7 +9,6 @@ import {
 } from '../api/pedidosApi';
 import { getApiErrorMessage } from '../api/apiClient';
 import { ProductoResumen } from '../utils/ProductoResumen';
-import { suscribirEvento } from '../api/apiEvento';
 
 type EstadoPedidoBackend =
   | 'pendiente'

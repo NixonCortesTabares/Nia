@@ -115,8 +115,7 @@ export class ProcesarMensajeEntranteUseCase {
             caption: data.caption,
         }, negocio.id);
 
-        const concluirResponse = await controllerEventos.ConcluirResponse(guardarMensaje.negocioId, 'nuevo_mensaje');
-        console.log('responses concluidas??', concluirResponse)
+        await controllerEventos.ConcluirResponse(guardarMensaje.negocioId, 'nuevo_mensaje');
         return {
             negocio,
             cliente,
