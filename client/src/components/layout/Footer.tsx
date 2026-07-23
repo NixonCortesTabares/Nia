@@ -1,3 +1,3 @@
 export function Footer() {
-  return <footer className="footer">Nia Pedidos - interfaz mock local</footer>
+  return <footer className="footer">Nia Pedidos</footer>
 }

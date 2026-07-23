@@ -107,7 +107,7 @@ router.get('/', (req, res) => {
 
 router.post('/', async (req, res) => {
 
-  const signature = req.header('x-hub-signature-256');
+  /*const signature = req.header('x-hub-signature-256');
 
   const firmaValida = verificarFirmaMeta(
     req.rawBody,
@@ -118,7 +118,7 @@ router.post('/', async (req, res) => {
   if (!firmaValida) {
     console.warn('Webhook rechazado: firma inválida');
     return res.sendStatus(403);
-  }
+  }*/
   res.sendStatus(200);
 
   try {

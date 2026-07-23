@@ -9,6 +9,7 @@ import {
 } from '../api/pedidosApi';
 import { getApiErrorMessage } from '../api/apiClient';
 import { ProductoResumen } from '../utils/ProductoResumen';
+import { suscribirEvento } from '../api/apiEvento';
 
 type EstadoPedidoBackend =
   | 'pendiente'
@@ -108,13 +109,13 @@ export function DashboardPage() {
   const [error, setError] = useState('');
   const isFetchingRef = useRef(false);
   const pedidosAnterioresRef = useRef<Set<string> | null>(null);
+    // Refs
   const audioContextRef = useRef<AudioContext | null>(null);
+  const isAudioEnabledRef = useRef(false);
 
-  const reproducirAlarma = useCallback(() => {
-    const context = audioContextRef.current ?? new window.AudioContext();
-    audioContextRef.current = context;
-
-    void context.resume().then(() => {
+  // Función para reproducir el sonido (estable)
+  const playSound = useCallback((context: AudioContext) => {
+    try {
       const oscillator = context.createOscillator();
       const gain = context.createGain();
       const inicio = context.currentTime;
@@ -128,16 +129,68 @@ export function DashboardPage() {
       oscillator.frequency.setValueAtTime(880, inicio + 1.4);
       oscillator.frequency.setValueAtTime(660, inicio + 1.75);
       oscillator.frequency.setValueAtTime(880, inicio + 2.1);
+
       gain.gain.setValueAtTime(0.0001, inicio);
       gain.gain.exponentialRampToValueAtTime(0.55, inicio + 0.03);
       gain.gain.setValueAtTime(0.55, inicio + duracion - 0.1);
       gain.gain.exponentialRampToValueAtTime(0.0001, inicio + duracion);
+
       oscillator.connect(gain);
       gain.connect(context.destination);
+
       oscillator.start(inicio);
       oscillator.stop(inicio + duracion);
-    }).catch(() => undefined);
+    } catch (err) {
+      console.error('Error reproduciendo sonido:', err);
+    }
   }, []);
+
+  // Reproducir alarma
+  const reproducirAlarma = useCallback(() => {
+    if (!isAudioEnabledRef.current) {
+      console.warn('🔇 Audio no habilitado aún (el usuario debe interactuar primero)');
+      return;
+    }
+
+    const context = audioContextRef.current;
+    if (!context) return;
+
+    if (context.state === 'suspended') {
+      context.resume().then(() => playSound(context));
+    } else {
+      playSound(context);
+    }
+  }, [playSound]);
+
+  /* const reproducirAlarma = useCallback(() => {
+     const context = audioContextRef.current ?? new window.AudioContext();
+     audioContextRef.current = context;
+ 
+     void context.resume().then(() => {
+       const oscillator = context.createOscillator();
+       const gain = context.createGain();
+       const inicio = context.currentTime;
+       const duracion = 2.6;
+ 
+       oscillator.type = 'square';
+       oscillator.frequency.setValueAtTime(880, inicio);
+       oscillator.frequency.setValueAtTime(660, inicio + 0.35);
+       oscillator.frequency.setValueAtTime(880, inicio + 0.7);
+       oscillator.frequency.setValueAtTime(660, inicio + 1.05);
+       oscillator.frequency.setValueAtTime(880, inicio + 1.4);
+       oscillator.frequency.setValueAtTime(660, inicio + 1.75);
+       oscillator.frequency.setValueAtTime(880, inicio + 2.1);
+       gain.gain.setValueAtTime(0.0001, inicio);
+       gain.gain.exponentialRampToValueAtTime(0.55, inicio + 0.03);
+       gain.gain.setValueAtTime(0.55, inicio + duracion - 0.1);
+       gain.gain.exponentialRampToValueAtTime(0.0001, inicio + duracion);
+       oscillator.connect(gain);
+       gain.connect(context.destination);
+       oscillator.start(inicio);
+       oscillator.stop(inicio + duracion);
+     }).catch(() => undefined);
+   }, []);*/
+
 
   const cargarPedidos = useCallback(async (options?: { silent?: boolean }) => {
     if (isFetchingRef.current) {
@@ -182,6 +235,51 @@ export function DashboardPage() {
   }, [reproducirAlarma]);
 
   useEffect(() => {
+    const actualizar = async () => {
+      await cargarPedidos({ silent: true }); // mejor usar silent aquí
+    };
+
+    window.addEventListener("pedido_nuevo", actualizar);
+
+    return () => window.removeEventListener("pedido_nuevo", actualizar);
+  }, [cargarPedidos]);   // ← importante agregar la dependencia
+
+
+  useEffect(() => {
+    const habilitarAudio = () => {
+      if (audioContextRef.current) return;
+
+      try {
+        const context = new (window.AudioContext || (window as any).webkitAudioContext)();
+        audioContextRef.current = context;
+        isAudioEnabledRef.current = true;
+
+        // Forzamos resume
+        context.resume().then(() => {
+          //console.log('✅ AudioContext habilitado y listo');
+        });
+      } catch (e) {
+        console.error('Error creando AudioContext', e);
+      }
+    };
+
+    // Intentamos habilitar con varios gestos
+    window.addEventListener('pointerdown', habilitarAudio, { once: true });
+    window.addEventListener('click', habilitarAudio, { once: true });
+    window.addEventListener('touchstart', habilitarAudio, { once: true });
+
+    return () => {
+      window.removeEventListener('pointerdown', habilitarAudio);
+      window.removeEventListener('click', habilitarAudio);
+      window.removeEventListener('touchstart', habilitarAudio);
+
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
+    };
+  }, []);
+  /*useEffect(() => {
     const habilitarAudio = () => {
       audioContextRef.current ??= new window.AudioContext();
       void audioContextRef.current.resume();
@@ -194,20 +292,10 @@ export function DashboardPage() {
       void audioContextRef.current?.close();
       audioContextRef.current = null;
     };
-  }, []);
+  }, []);*/
 
   useEffect(() => {
     cargarPedidos();
-  }, [cargarPedidos]);
-
-  useEffect(() => {
-    const actualizarPedidos = () => void cargarPedidos({ silent: true });
-
-    window.addEventListener('nia:pedidos-poll', actualizarPedidos);
-
-    return () => {
-      window.removeEventListener('nia:pedidos-poll', actualizarPedidos);
-    };
   }, [cargarPedidos]);
 
   const resumen = useMemo(

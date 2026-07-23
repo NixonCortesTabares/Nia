@@ -8,6 +8,7 @@ import { enviarMensaje } from "./whatsapp";
 import { PedidoBorrador } from "../domain/entities/Conversacion";
 import { MenuProductoRow, ProductoRepository } from "../infraestructure/repositories/ProductoRepository";
 import { ConstruirMenuUseCase } from "../application/menu/ConstruirMenuUseCase";
+import { controllerEventos } from "../infraestructure/http/routes/privadas/eventos.routes";
 
 const WORKER_INTERVAL_MS = 3000;
 const PENDING_LIMIT = 10;
@@ -191,7 +192,7 @@ async function procesarConversacionPendiente(
       wamid: wamidRta,
     }, negocio.id);
 
-    //console.log("Respuesta enviada por worker");
+    await controllerEventos.ConcluirResponse(negocio.id, 'nuevo_mensaje');
   }
 
   await conversacionRepo.marcarProcesadaHastaMensaje(

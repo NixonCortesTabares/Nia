@@ -26,11 +26,13 @@ export class EventoController {
             }
 
             this.clientesEsperando.push(pendiente);
-
-            req.on("close", () => {
+            console.log('request nueva guardada su id es:::', pendiente.negocioId);
+            console.log('cantidad de res a la espera:', this.clientesEsperando.length);
+            res.on("close", () => {
                 this.clientesEsperando = this.clientesEsperando.filter(
                     solicitud => solicitud !== pendiente
                 );
+                console.log('eliminado');
             });
             return;
         }
@@ -42,13 +44,15 @@ export class EventoController {
             console.log(error);
             return;
         }
-
     }
 
-    ConcluirResponse = async (negocioId: string, evento: string) => {
+    ConcluirResponse = async (negocioId: string, evento: string): Promise<boolean> => {
         const clientesEsperandoActualizado: Pendientes[] = [];
-        for (const solicitud of this.clientesEsperando) {
+        try{
+            for (const solicitud of this.clientesEsperando) {
             if (solicitud.negocioId === negocioId) {
+                console.log('EventController.ts ln54');
+                console.log('EVENTO EMITIDO:::', evento);
                 solicitud.res.status(200).json({
                     ok: true,
                     mensaje: "evento recibido",
@@ -58,7 +62,13 @@ export class EventoController {
             else { clientesEsperandoActualizado.push(solicitud); }
         }
         this.clientesEsperando = clientesEsperandoActualizado;
-        return;
+        return true;
+        }
+        catch(error){
+            console.log('error concluyendo responses de eventos');
+            console.log(error);
+            return false;
+        }
     }
 
 

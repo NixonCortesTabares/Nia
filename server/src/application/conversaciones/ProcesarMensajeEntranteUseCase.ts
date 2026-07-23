@@ -8,6 +8,7 @@ import { pdfwhatsapp } from '../../agent/pdfwhatsapp';
 import { imgwhatsapp } from '../../agent/imgwhatsapp';
 import { ObtenerFotosMenuUseCase } from '../negocios/ObtenerFotosMenuUseCase';
 import { FotosNegocioRepository } from '../../infraestructure/repositories/FotosNegocioRepository';
+import { controllerEventos } from '../../infraestructure/http/routes/privadas/eventos.routes';
 const esperar = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 export interface WhatsappData {
     wamid: string,
@@ -114,6 +115,8 @@ export class ProcesarMensajeEntranteUseCase {
             caption: data.caption,
         }, negocio.id);
 
+        const concluirResponse = await controllerEventos.ConcluirResponse(guardarMensaje.negocioId, 'nuevo_mensaje');
+        console.log('responses concluidas??', concluirResponse)
         return {
             negocio,
             cliente,

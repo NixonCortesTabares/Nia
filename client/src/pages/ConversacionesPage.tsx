@@ -23,10 +23,7 @@ const estadoLabel: Record<string, string> = {
 }
 
 function formatFecha(value?: string | null) {
-  if (!value) {
-    return 'Sin actividad'
-  }
-
+  if (!value) return 'Sin actividad'
   return new Intl.DateTimeFormat('es-CO', {
     dateStyle: 'short',
     timeStyle: 'short',
@@ -34,10 +31,7 @@ function formatFecha(value?: string | null) {
 }
 
 function formatFechaLista(value?: string | null) {
-  if (!value) {
-    return ''
-  }
-
+  if (!value) return ''
   const fecha = new Date(value)
   const hoy = new Date()
   const mismoDia = fecha.toDateString() === hoy.toDateString()
@@ -59,9 +53,11 @@ export function ConversacionesPage() {
   const [error, setError] = useState<string | null>(null)
   const [mostrandoDetalleMobile, setMostrandoDetalleMobile] = useState(false)
   const [conversacionesPorAtender, setConversacionesPorAtender] = useState<Set<string>>(new Set())
+
   const requestEnCursoRef = useRef(false)
   const seleccionadaIdRef = useRef<string | null>(null)
 
+  // Mantener referencia actualizada de la conversación seleccionada
   useEffect(() => {
     seleccionadaIdRef.current = seleccionadaId
   }, [seleccionadaId])
@@ -71,54 +67,46 @@ export function ConversacionesPage() {
     [conversaciones, seleccionadaId]
   )
 
-  const cargarDatos = useCallback(async (silent = false) => {
-    if (requestEnCursoRef.current) {
-      return
-    }
-
+  // Cargar lista completa de conversaciones
+  const cargarDatos = useCallback(async (silent: boolean = false) => {
+    if (requestEnCursoRef.current) return
     requestEnCursoRef.current = true
 
     try {
-      if (!silent) {
-        setError(null)
-      }
+      if (!silent) setError(null)
 
-      const conversacionesResponse = await obtenerConversaciones()
-      const nuevasConversaciones = conversacionesResponse.conversaciones
+      const res = await obtenerConversaciones()
+      const nuevasConversaciones = res.conversaciones
+
       setConversaciones(nuevasConversaciones)
 
-      const conversacionesAbiertas = JSON.parse(
+      // Actualizar conversaciones que necesitan atención
+      const abiertas = JSON.parse(
         window.localStorage.getItem('nia-conversaciones-escaladas-abiertas') ?? '[]'
       ) as string[]
+
       setConversacionesPorAtender(new Set(
         nuevasConversaciones
-          .filter((item) => item.estado === 'escalada' && !conversacionesAbiertas.includes(item.id))
-          .map((item) => item.id)
+          .filter((c) => c.estado === 'escalada' && !abiertas.includes(c.id))
+          .map((c) => c.id)
       ))
 
+      // Determinar qué conversación mantener/seleccionar
       const idActual = seleccionadaIdRef.current
-      const idSeleccion = idActual && nuevasConversaciones.some((item) => item.id === idActual)
+      const idSeleccion = idActual && nuevasConversaciones.some((c) => c.id === idActual)
         ? idActual
         : nuevasConversaciones[0]?.id ?? null
 
-      setSeleccionadaId(idSeleccion)
-      seleccionadaIdRef.current = idSeleccion
-
       if (idSeleccion) {
-        const [detalleResponse, mensajesResponse] = await Promise.all([
-          obtenerConversacionPorId(idSeleccion),
-          obtenerMensajesConversacion(idSeleccion),
-        ])
-
-        setDetalle(detalleResponse.conversacion)
-        setMensajes(mensajesResponse.mensajes)
-      } else {
-        setDetalle(null)
-        setMensajes([])
+        setSeleccionadaId(idSeleccion)
+        seleccionadaIdRef.current = idSeleccion
+        await cargarMensajesDeConversacion(idSeleccion, silent)
       }
     } catch (err) {
       if (!silent) {
         setError(err instanceof Error ? err.message : 'No se pudieron cargar las conversaciones.')
+      } else {
+        console.warn('Error en actualización silenciosa')
       }
     } finally {
       setLoadingInicial(false)
@@ -126,64 +114,90 @@ export function ConversacionesPage() {
     }
   }, [])
 
+  // Actualizar SOLO los mensajes y detalle de la conversación seleccionada
+  const cargarMensajesDeConversacion = useCallback(async (id: string, silent = true) => {
+    if (!id) return
+
+    try {
+      const [detalleRes, mensajesRes] = await Promise.all([
+        obtenerConversacionPorId(id),
+        obtenerMensajesConversacion(id),
+      ])
+
+      setDetalle(detalleRes.conversacion)
+      setMensajes(mensajesRes.mensajes)
+    } catch (err) {
+      console.warn('Error actualizando mensajes:', err)
+      if (!silent) {
+        setError('Error al actualizar los mensajes')
+      }
+    }
+  }, [])
+
+  // Carga inicial
   useEffect(() => {
-    cargarDatos()
+    cargarDatos(false)
   }, [cargarDatos])
 
-  async function seleccionarConversacion(id: string) {
-    if (requestEnCursoRef.current) {
-      return
+  // Escuchar nuevo mensaje (actualiza lista + conversación seleccionada)
+  useEffect(() => {
+    const handleNuevoMensaje = async () => {
+      await cargarDatos(true)
+
+      if (seleccionadaIdRef.current) {
+        await cargarMensajesDeConversacion(seleccionadaIdRef.current, true)
+      }
     }
+
+    window.addEventListener("nuevo_mensaje", handleNuevoMensaje)
+
+    return () => window.removeEventListener("nuevo_mensaje", handleNuevoMensaje)
+  }, [cargarDatos, cargarMensajesDeConversacion])
+
+  async function seleccionarConversacion(id: string) {
+    if (requestEnCursoRef.current) return
 
     requestEnCursoRef.current = true
     setSeleccionadaId(id)
     seleccionadaIdRef.current = id
     setMostrandoDetalleMobile(true)
+    setError(null)
+
+    // Marcar como abierta si estaba escalada
     const abiertas = JSON.parse(
       window.localStorage.getItem('nia-conversaciones-escaladas-abiertas') ?? '[]'
     ) as string[]
-    const conversacionAbierta = conversaciones.find((item) => item.id === id)
-    if (conversacionAbierta?.estado === 'escalada' && !abiertas.includes(id)) {
-      window.localStorage.setItem(
-        'nia-conversaciones-escaladas-abiertas',
-        JSON.stringify([...abiertas, id])
-      )
-      window.dispatchEvent(new Event('nia:conversacion-abierta'))
-    }
-    setConversacionesPorAtender((current) => {
-      if (!current.has(id)) {
-        return current
+
+    if (!abiertas.includes(id)) {
+      const conv = conversaciones.find((c) => c.id === id)
+      if (conv?.estado === 'escalada') {
+        window.localStorage.setItem(
+          'nia-conversaciones-escaladas-abiertas',
+          JSON.stringify([...abiertas, id])
+        )
+        window.dispatchEvent(new Event('nia:conversacion-abierta'))
       }
-      const next = new Set(current)
+    }
+
+    // Quitar del badge
+    setConversacionesPorAtender((prev) => {
+      const next = new Set(prev)
       next.delete(id)
       return next
     })
-    setError(null)
 
-    try {
-      const [detalleResponse, mensajesResponse] = await Promise.all([
-        obtenerConversacionPorId(id),
-        obtenerMensajesConversacion(id),
-      ])
-
-      setDetalle(detalleResponse.conversacion)
-      setMensajes(mensajesResponse.mensajes)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo abrir la conversacion.')
-    } finally {
-      requestEnCursoRef.current = false
-    }
+    await cargarMensajesDeConversacion(id, false)
+    requestEnCursoRef.current = false
   }
 
   async function tomarControl() {
-    if (!seleccionadaId) {
-      return
-    }
+    if (!seleccionadaId) return
 
     try {
       setError(null)
       const response = await tomarControlConversacion(seleccionadaId)
       setDetalle(response.conversacion)
+
       setConversaciones((current) =>
         current.map((item) =>
           item.id === seleccionadaId
@@ -198,18 +212,18 @@ export function ConversacionesPage() {
 
   async function enviarMensaje(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-
-    if (!seleccionadaId || !contenido.trim() || enviando) {
-      return
-    }
+    if (!seleccionadaId || !contenido.trim() || enviando) return
 
     try {
       setEnviando(true)
       setError(null)
+
       const response = await enviarMensajeManual(seleccionadaId, contenido)
       setMensajes((current) => [...current, response.resultado])
       setContenido('')
-      cargarDatos(true)
+
+      // Actualizar mensajes
+      await cargarMensajesDeConversacion(seleccionadaId, true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo enviar el mensaje.')
     } finally {
@@ -219,15 +233,17 @@ export function ConversacionesPage() {
 
   const estadoActual = detalle?.estado ?? conversacionSeleccionada?.estado
   const estaEscalada = estadoActual === 'escalada'
-  const conversacionesOrdenadas = useMemo(
-    () => [...conversaciones].sort((a, b) => {
+
+  const conversacionesOrdenadas = useMemo(() => {
+    return [...conversaciones].sort((a, b) => {
       if (a.estado === 'escalada' && b.estado !== 'escalada') return -1
       if (a.estado !== 'escalada' && b.estado === 'escalada') return 1
-      return new Date(b.ultimaActividadEn ?? b.creadoEn).getTime()
-        - new Date(a.ultimaActividadEn ?? a.creadoEn).getTime()
-    }),
-    [conversaciones]
-  )
+      return (
+        new Date(b.ultimaActividadEn ?? b.creadoEn).getTime() -
+        new Date(a.ultimaActividadEn ?? a.creadoEn).getTime()
+      )
+    })
+  }, [conversaciones])
 
   return (
     <div className={`conversations-layout ${mostrandoDetalleMobile ? 'mobile-detail-open' : ''}`}>
@@ -240,7 +256,7 @@ export function ConversacionesPage() {
         </div>
 
         {loadingInicial ? <p>Cargando conversaciones...</p> : null}
-        {error ? <div className="success-message">{error}</div> : null}
+        {error && <div className="success-message">{error}</div>}
 
         <div className="conversation-list">
           {conversacionesOrdenadas.map((conversacion) => (
@@ -255,7 +271,7 @@ export function ConversacionesPage() {
                 <time>{formatFechaLista(conversacion.ultimaActividadEn)}</time>
               </span>
               <span className="conversation-item-bottom">
-                <small>{conversacion.ultimoMensaje || 'Sin mensajes todavia'}</small>
+                <small>{conversacion.ultimoMensaje || 'Sin mensajes todavía'}</small>
                 <Badge tone={conversacion.estado === 'escalada' ? 'warning' : 'neutral'}>
                   {estadoLabel[conversacion.estado] ?? conversacion.estado}
                 </Badge>
@@ -263,9 +279,9 @@ export function ConversacionesPage() {
             </button>
           ))}
 
-          {!loadingInicial && conversaciones.length === 0 ? (
-            <p>No hay conversaciones todavia.</p>
-          ) : null}
+          {!loadingInicial && conversaciones.length === 0 && (
+            <p>No hay conversaciones todavía.</p>
+          )}
         </div>
       </Card>
 
@@ -283,26 +299,26 @@ export function ConversacionesPage() {
               </button>
               <div>
                 <h2>{conversacionSeleccionada?.cliente.nombre || 'Cliente sin nombre'}</h2>
-                <small>{conversacionSeleccionada?.cliente.telefono || 'Sin telefono'}</small>
+                <small>{conversacionSeleccionada?.cliente.telefono || 'Sin teléfono'}</small>
               </div>
-              {estadoActual ? (
+              {estadoActual && (
                 <Badge tone={estaEscalada ? 'warning' : 'neutral'}>
                   {estadoLabel[estadoActual] ?? estadoActual}
                 </Badge>
-              ) : null}
+              )}
             </div>
 
             <div className="conversation-actions">
-              {estadoActual === 'activa' ? (
+              {estadoActual === 'activa' && (
                 <Button variant="primary" onClick={tomarControl}>
                   Tomar el control
                 </Button>
-              ) : null}
+              )}
 
               {estaEscalada ? (
-                <p>Conversacion en atencion humana</p>
+                <p>Conversación en atención humana</p>
               ) : (
-                <p>Para responder manualmente, primero debes tomar el control de la conversacion.</p>
+                <p>Para responder manualmente, primero debes tomar el control.</p>
               )}
             </div>
 
@@ -312,45 +328,35 @@ export function ConversacionesPage() {
                   key={mensaje.id}
                   className={`message-bubble ${mensaje.origen === 'cliente' ? 'incoming' : 'outgoing'}`}
                 >
+                  {/* Tu código de renderizado de mensajes (imágenes, documentos, texto) */}
                   {mensaje.tipo === 'imagen' && mensaje.mediaUrl ? (
                     <a href={mensaje.mediaUrl} target="_blank" rel="noreferrer">
-                      <img
-                        src={mensaje.mediaUrl}
-                        alt="Comprobante de transferencia"
-                        className="max-w-xs rounded-lg border object-cover"
-                      />
+                      <img src={mensaje.mediaUrl} alt="Imagen" className="max-w-xs rounded-lg border object-cover" />
                     </a>
                   ) : null}
+
                   {mensaje.tipo === 'documento' && mensaje.mediaUrl ? (
-                    <a
-                      href={mensaje.mediaUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex rounded-md border px-3 py-2 text-sm font-medium hover:bg-gray-50"
-                    >
+                    <a href={mensaje.mediaUrl} target="_blank" rel="noreferrer" className="inline-flex rounded-md border px-3 py-2 text-sm font-medium hover:bg-gray-50">
                       Ver comprobante adjunto
                     </a>
                   ) : null}
-                  {(mensaje.tipo === 'imagen' || mensaje.tipo === 'documento') && !mensaje.mediaUrl ? (
-                    <p className="text-sm text-red-600">
-                      El cliente envio un archivo, pero no se pudo cargar.
-                    </p>
-                  ) : null}
-                  {mensaje.tipo === 'texto' || !mensaje.tipo || mensaje.mediaUrl ? (
+
+                  {(mensaje.tipo === 'texto' || !mensaje.tipo) && (
                     <p>{mensaje.caption ?? mensaje.contenido}</p>
-                  ) : null}
+                  )}
+
                   <small>{formatFecha(mensaje.creadoEn)}</small>
                 </div>
               ))}
 
-              {mensajes.length === 0 ? <p>No hay mensajes en esta conversacion.</p> : null}
+              {mensajes.length === 0 && <p>No hay mensajes en esta conversación.</p>}
             </div>
 
-            {estaEscalada ? (
+            {estaEscalada && (
               <form className="message-composer" onSubmit={enviarMensaje}>
                 <textarea
                   value={contenido}
-                  onChange={(event) => setContenido(event.target.value)}
+                  onChange={(e) => setContenido(e.target.value)}
                   placeholder="Escribe tu respuesta"
                   rows={3}
                 />
@@ -358,10 +364,10 @@ export function ConversacionesPage() {
                   Enviar
                 </Button>
               </form>
-            ) : null}
+            )}
           </>
         ) : (
-          <p>Selecciona una conversacion para ver los mensajes.</p>
+          <p>Selecciona una conversación para ver los mensajes.</p>
         )}
       </Card>
     </div>

@@ -143,7 +143,6 @@ async function cargarTodosLosPedidosPorRango(rango: '7d' | '30d') {
       paginasCargadas++
     }
   }
-  console.log(pedidos);
   return pedidos
 }
 

@@ -18,6 +18,7 @@ import { enviarMensaje } from "./whatsapp";
 import { MetodosDePagoRepository } from "../infraestructure/repositories/MetodosDePagoRepository";
 import { ObtenerMetodosPagoUseCase } from "../application/negocios/ObtenerMetodosPagoUseCase";
 import { construirTextoMetodosTransf } from "../application/utils/construirTextoMetodosTransfer";
+import { controllerEventos } from "../infraestructure/http/routes/privadas/eventos.routes";
 
 function textoValido(valor: unknown): valor is string {
     return typeof valor === 'string' && valor.trim().length > 0;
@@ -50,11 +51,13 @@ export async function ejecutarHerramienta(nombre: string, input: any,
         if (nombre === 'escalar_conversacion') {
             const conversacionRepo = new ConversacionRepository();
             const actualizarConver = await conversacionRepo.actualizar(conversacionId, { estado: 'escalada' });
+            
             if (!actualizarConver) {
                 return {
                     ok: false, mensaje: 'No se pudo actualizar la conversacion'
                 };
             }
+            await controllerEventos.ConcluirResponse(actualizarConver.negocioId, 'conversacion_escalada');
             return { ok: true, mensaje: 'Una persona te atenderá pronto.' };
         }
 
@@ -161,7 +164,8 @@ export async function ejecutarHerramienta(nombre: string, input: any,
             lineasMensaje.push(`Si tienes alguna solicitud, queja, reclamo, por favor llama: ${negocio?.numtel}`);
             const mensaje = lineasMensaje.join("\n").trim();
 
-            
+            await controllerEventos.ConcluirResponse(pedidoGenerado.pedido.negocioId, 'nuevo_pedido');
+            //console.log(concluirResponse);
             return { ok: true, mensaje};
 
         }
