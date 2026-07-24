@@ -1,35 +1,56 @@
-import { useState } from 'react'
-import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
-import { useRouter } from '../routes/AppRoutes'
 
 export function AgendarVisitaPage() {
-  const { navigate } = useRouter()
-  const [sent, setSent] = useState(false)
 
-  return (
-    <main className="auth-page schedule-page">
-      <Card className="wide-card">
-        <div className="page-heading">
+ return (
+    <main className="content">
+      <div className="stack mx-auto max-w-3xl">
+        <section className="stack">
           <div>
-            <p className="eyebrow">Formulario comercial</p>
-            <h1>Agendar visita</h1>
+            <p className="eyebrow">Nia</p>
+            <h1 className="m-0 text-3xl font-bold text-[var(--text)]">
+              Nia - Negocio Inteligente Automatizado
+            </h1>
           </div>
-          <Button variant="ghost" onClick={() => navigate('/login')}>Volver</Button>
-        </div>
-        {sent ? <p className="success-message">Solicitud registrada de forma mock. El equipo comercial te contactara pronto.</p> : null}
-        <form className="form two-columns" onSubmit={(event) => { event.preventDefault(); setSent(true) }}>
-          <label>Nombre del negocio<input required /></label>
-          <label>Nombre del encargado<input required /></label>
-          <label>Telefono / WhatsApp<input required /></label>
-          <label>Ciudad<input required /></label>
-          <label>Tipo de negocio<input placeholder="Restaurante, cafe, comidas rapidas" /></label>
-          <label>Volumen aproximado de pedidos por WhatsApp<input placeholder="Ej. 80 por dia" /></label>
-          <label>Horario preferido para contacto<input placeholder="Ej. 9:00 a.m. - 12:00 m." /></label>
-          <label className="full">Comentarios<textarea rows={4} /></label>
-          <Button variant="primary" type="submit">Enviar solicitud</Button>
-        </form>
-      </Card>
+
+          <Card className="stack text-sm leading-7 text-[var(--text)] sm:text-base">
+            <p>
+              Nia es una herramienta digital disenada para apoyar a restaurantes
+              en la gestion de pedidos, conversaciones y atencion de clientes a
+              traves de WhatsApp y canales digitales asociados.
+            </p>
+
+            <section className="stack compact">
+              <h2 className="m-0 text-xl font-semibold text-[var(--text)]">
+                Contacto:
+              </h2>
+
+              <p className="m-0 text-[var(--muted)]">
+                Puede enviar un correo a:{' '}
+                <a
+                  className="font-medium text-[var(--text)] underline underline-offset-4"
+                  href="mailto:nixoncortes1@gmail.com"
+                >
+                  nixoncortes1@gmail.com
+                </a>
+              </p>
+               <p className="m-0 text-[var(--muted)]">
+                Puede contactarse al telefono celular: 
+                <a
+                  className="font-medium text-[var(--text)] underline underline-offset-4"
+                >
+                  +57 3183551027
+                </a>
+              </p>
+            </section>
+
+            <p className="m-0 text-sm text-[var(--muted)]">
+              Última actualización: Junio de 2026.
+            </p>
+          </Card>
+        </section>
+      </div>
     </main>
   )
+    
 }
