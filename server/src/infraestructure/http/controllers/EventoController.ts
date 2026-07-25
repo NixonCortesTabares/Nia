@@ -44,14 +44,14 @@ export class EventoController {
             pendiente.res = res;
             pendiente.negocioId = negocioId;
             pendiente.timeout = timeout;
-            console.log('solicitud creada:')
-            console.log(pendiente.negocioId);
+            //console.log('solicitud creada:')
+            //console.log(pendiente.negocioId);
             this.clientesEsperando.push(pendiente);
-            console.log('solicitud guardada correctamente')
+            //console.log('solicitud guardada correctamente')
             res.on("close", () => {
                 clearTimeout(timeout);
                 this.eliminarPendiente(pendiente);
-                console.log('solicitud eliminada.');
+                //console.log('solicitud eliminada.');
             });
 
         }
