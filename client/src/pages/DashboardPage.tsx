@@ -108,7 +108,7 @@ export function DashboardPage() {
   const [error, setError] = useState('');
   const isFetchingRef = useRef(false);
   const pedidosAnterioresRef = useRef<Set<string> | null>(null);
-    // Refs
+  // Refs
   const audioContextRef = useRef<AudioContext | null>(null);
   const isAudioEnabledRef = useRef(false);
 
@@ -297,6 +297,19 @@ export function DashboardPage() {
     cargarPedidos();
   }, [cargarPedidos]);
 
+  //TEMPORALLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
+  // === POLLING TEMPORAL (cada minuto) ===
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      cargarPedidos({ silent: true });
+    }, 60 * 1000); // 60000 ms = 1 minuto
+
+    // Limpieza al desmontar
+    return () => clearInterval(intervalId);
+  }, [cargarPedidos]);
+  // ======================================
+
+  
   const resumen = useMemo(
     () => ({
       total: pedidos.length,
@@ -474,6 +487,16 @@ function OrderCard({
 
           <span className="min-w-0 break-words text-right text-sm text-[var(--text)]">
             {formatHora(pedido.creadoEn)}
+          </span>
+        </div>
+
+         <div className="flex min-w-0 items-center justify-between gap-3">
+          <span className="text-sm font-semibold text-[var(--muted)]">
+            Nota:
+          </span>
+
+          <span className="min-w-0 break-words text-right text-sm text-[var(--text)]">
+            {pedido.notas}
           </span>
         </div>
       </div>

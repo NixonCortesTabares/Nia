@@ -88,7 +88,7 @@ export class ConversacionRepository implements IConversacionRepository {
       AND ultimo_mensaje_en < (NOW() AT TIME ZONE 'America/Bogota') - INTERVAL '2 hours';
   `);
 
-    console.log(`Conversaciones cerradas automáticamente: ${result.rowCount}`);
+    //console.log(`Conversaciones cerradas automáticamente: ${result.rowCount}`);
   }
 
   async actualizarItemsPedidoBorrador(

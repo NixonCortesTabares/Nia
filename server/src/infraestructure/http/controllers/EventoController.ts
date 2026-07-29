@@ -9,7 +9,7 @@ interface Pendientes {
 export class EventoController {
 
     private clientesEsperando: Pendientes[] = [];
-
+    private eventos: Map<string, string[]> = new Map<string, string[]>();
     private eliminarPendiente(pendiente: Pendientes) {
         this.clientesEsperando = this.clientesEsperando.filter(
             solicitud => solicitud !== pendiente
@@ -28,7 +28,6 @@ export class EventoController {
 
             const negocioId = req.user.negocioId;
 
-            // Se crea primero vacío para poder referenciarlo
             const pendiente = {} as Pendientes;
 
             const timeout = setTimeout(() => {
@@ -40,7 +39,7 @@ export class EventoController {
                 }
 
             }, 60_000);
-            
+
             pendiente.res = res;
             pendiente.negocioId = negocioId;
             pendiente.timeout = timeout;
@@ -67,6 +66,23 @@ export class EventoController {
             }
         }
     };
+
+    GuardarEvento = async (
+        evento: string,
+        negocioId: string
+    ): Promise<void> => {
+        const existe: boolean = this.eventos.has(negocioId);
+        if (existe) {
+            const eventosPendientes = this.eventos.get(negocioId);
+            eventosPendientes?.push(evento);
+            this.eventos.set(negocioId, eventosPendientes ?? []);
+        }
+        else{
+            this.eventos.set(negocioId, [evento]);
+        }
+
+
+    }
 
     ConcluirResponse = async (
         negocioId: string,

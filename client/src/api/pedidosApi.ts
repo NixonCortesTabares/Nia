@@ -25,6 +25,7 @@ export interface Pedido {
   total: number;
   costoDomicilio: string;
   creadoEn: string;
+  notas: string;
   cliente?: {
     nombre: string | null;
     telefono: string | null;

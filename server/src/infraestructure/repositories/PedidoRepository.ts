@@ -178,6 +178,7 @@ export class PedidoRepository implements IPedidoRepository {
           p.total,
           p.costo_domicilio,
           p.creado_en,
+          p.notas,
           p.nombre_cliente AS cliente_nombre,
           p.telefono_cliente AS cliente_telefono
         FROM pedidos p
@@ -241,7 +242,7 @@ export class PedidoRepository implements IPedidoRepository {
         pf.creado_en,
         pf.cliente_nombre,
         pf.cliente_telefono,
-
+        pf.notas,
         COALESCE(
           jsonb_agg(
             jsonb_build_object(
@@ -272,7 +273,8 @@ export class PedidoRepository implements IPedidoRepository {
         pf.costo_domicilio,
         pf.creado_en,
         pf.cliente_nombre,
-        pf.cliente_telefono
+        pf.cliente_telefono,
+        pf.notas
 
       ORDER BY pf.creado_en DESC
       `,
@@ -288,6 +290,7 @@ export class PedidoRepository implements IPedidoRepository {
         total: Number(row.total),
         costoDomicilio: row.costo_domicilio,
         creadoEn: row.creado_en,
+        notas: row.notas,
         cliente: {
           nombre: row.cliente_nombre,
           telefono: row.cliente_telefono,
