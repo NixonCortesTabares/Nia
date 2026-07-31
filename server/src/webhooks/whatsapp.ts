@@ -240,6 +240,7 @@ router.post('/', async (req, res) => {
 
     if(message.type === 'audio'){
       await enviarMensaje(from, 'No puedo escuchar audios ahora, podrias escribirme por favor?', phoneId);
+      return;
     }
     if (!('text' in message) || !message.text?.body) {
       console.log('Mensaje de WhatsApp ignorado porque no es texto, imagen ni documento:', {
@@ -254,6 +255,10 @@ router.post('/', async (req, res) => {
     const text = message.text.body;
 
     //Busca al negocio, crea al cliente, crea la conversacion, y guarda el mensaje del cliente
+    if(from === null){
+      console.log("No hay un from definido: ", from);
+      return;
+    }
     const resultado = await mensajeEntrante.execute({
       wamid,
       from,
