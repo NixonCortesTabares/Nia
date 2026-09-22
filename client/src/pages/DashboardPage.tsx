@@ -431,8 +431,8 @@ function OrderCard({
         </div>
       </div>
 
-      <div className="grid min-w-0 gap-2 overflow-hidden rounded-md border border-[var(--border)] bg-[var(--surface-muted)] p-3">
-        <span className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+      <div className="grid min-w-0 gap-2 overflow-hidden rounded-md border border-[var(--primary-border)] bg-[var(--primary-surface)] p-3">
+        <span className="text-xs font-semibold uppercase tracking-wide text-[var(--primary)]">
           Productos
         </span>
 

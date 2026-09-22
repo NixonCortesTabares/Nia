@@ -144,6 +144,18 @@ export class PedidoRepository implements IPedidoRepository {
         if (filtros.rango === 'mes') {
           condiciones.push(`p.creado_en >= date_trunc('month', NOW())`);
         }
+
+        if (filtros.rango === '3m') {
+          condiciones.push(`p.creado_en >= NOW() - INTERVAL '3 months'`);
+        }
+
+        if (filtros.rango === '6m') {
+          condiciones.push(`p.creado_en >= NOW() - INTERVAL '6 months'`);
+        }
+
+        if (filtros.rango === '1a') {
+          condiciones.push(`p.creado_en >= NOW() - INTERVAL '1 year'`);
+        }
       }
 
       if (filtros.desde) {

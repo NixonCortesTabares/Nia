@@ -39,6 +39,7 @@ export class ProcesarMensajeEntranteUseCase {
 
         let cliente = await this.clienteRepository.buscarPorTelefono(negocio.id, data.from);
         if (!cliente) {
+            //console.log("ENTRO A CREAR CLIENTE");
             const clienteCreado = await this.clienteRepository.crear(
                 {
                     negocioId: negocio.id,
@@ -55,7 +56,9 @@ export class ProcesarMensajeEntranteUseCase {
         if (!conversacionActiva) {
             const crearConversacion = await this.conversacionRepository.crear({
                 negocioId: negocio.id,
-                clienteId: cliente.id
+                clienteId: cliente.id,
+                numeroCliente: data.from,
+                nombreCliente: cliente.nombre
             });
             conversacionActiva = crearConversacion;
 

@@ -36,8 +36,10 @@
   height: 38px;
   display: inline-grid;
   place-items: center;
-  border: 1px solid var(--text);
+  border: 0;
   border-radius: 8px;
+  background: var(--primary);
+  color: var(--primary-contrast);
   font-weight: 700;
 }
 
@@ -96,10 +98,19 @@ small,
 }
 
 .nav-item.active,
+.bottom-nav .active {
+  background: var(--primary-surface);
+  color: var(--primary);
+}
+
 .nav-item:hover,
-.bottom-nav .active,
 .mobile-more button:hover {
   background: var(--surface-muted);
+}
+
+.nav-item.active span {
+  border-color: var(--primary-border);
+  color: var(--primary);
 }
 
 .app-main {
@@ -198,9 +209,14 @@ small,
 }
 
 .btn-primary {
-  color: var(--surface);
-  background: var(--text);
-  border-color: var(--text);
+  color: var(--primary-contrast);
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.btn-primary:hover {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
 }
 
 .btn-secondary:hover,
@@ -221,6 +237,7 @@ small,
   display: grid;
   grid-template-columns: repeat(6, minmax(150px, 1fr));
   gap: 12px;
+  
 }
 
 .metric {
@@ -228,6 +245,9 @@ small,
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  border: 1px solid var(--primary);
+  border-radius: 8px;
+  background: var(--primary-surface);
 }
 
 .metric strong {
@@ -250,9 +270,14 @@ small,
   min-height: 180px;
   overflow: hidden;
   padding: 12px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--primary);
   border-radius: 8px;
-  background: var(--surface-muted);
+  background: var(--primary-surface);
+}
+
+.kanban-column h2,
+.kanban-column > p {
+  color: var(--text);
 }
 
 h2,
@@ -506,7 +531,14 @@ textarea {
 }
 
 .selected {
-  border-color: var(--strong-border);
+  border-color: var(--primary-border);
+  background: var(--primary-surface);
+}
+
+.conversation-item:hover,
+.conversation-item.selected {
+  border-color: var(--primary-border);
+  background: var(--primary-surface);
 }
 
 .inline-fields {
@@ -543,9 +575,9 @@ textarea {
 }
 
 .chip.selected {
-  background: var(--text);
-  color: var(--surface);
-  border-color: var(--text);
+  background: var(--primary);
+  color: var(--primary-contrast);
+  border-color: var(--primary);
 }
 
 .conversation-row {
@@ -571,7 +603,8 @@ textarea {
 }
 
 .conversation-detail-panel {
-  grid-template-rows: auto auto minmax(380px, 1fr) auto;
+  grid-template-rows: auto auto auto auto;
+  align-content: start;
 }
 
 .conversation-list-panel.card,
@@ -615,12 +648,6 @@ textarea {
   50% { background: #fff3b0; }
 }
 
-.conversation-item:hover,
-.conversation-item.selected {
-  border-color: var(--strong-border);
-  background: var(--surface-muted);
-}
-
 .conversation-item-top,
 .conversation-item-bottom,
 .conversation-detail-header,
@@ -630,6 +657,15 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+}
+
+.conversation-item-bottom {
+  flex-wrap: wrap;
+}
+
+.conversation-item-bottom .badge {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .conversation-item-top time {
@@ -643,10 +679,7 @@ textarea {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.conversation-item-bottom .badge {
-  flex-shrink: 0;
+  color: var(--text);
 }
 
 .conversation-item strong,
@@ -674,9 +707,9 @@ textarea {
 }
 
 .messages-panel {
-  min-height: 380px;
-  height: 100%;
-  max-height: none;
+  min-height: 160px;
+  height: auto;
+  max-height: min(60vh, 560px);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -699,16 +732,22 @@ textarea {
 
 .message-bubble.outgoing {
   align-self: flex-end;
-  background: var(--text);
+  background: var(--primary-surface);
+  border-radius: 8px;
+  border-color: var(--primary);
 }
 
 .message-bubble.outgoing p,
 .message-bubble.outgoing small {
-  color: var(--surface);
+  color: var(--text);
 }
 
 .message-bubble.incoming {
   align-self: flex-start;
+}
+
+.message-bubble.incoming p {
+  color: var(--text);
 }
 
 .message-composer {
@@ -752,7 +791,7 @@ textarea {
   display: block;
   width: 100%;
   min-height: 8px;
-  background: var(--text);
+  background: var(--primary);
 }
 
 .bottom-nav,

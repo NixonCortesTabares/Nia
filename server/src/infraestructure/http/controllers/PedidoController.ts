@@ -33,7 +33,7 @@ export class PedidoController {
                 'cancelado',
             ];
 
-            const rangosPermitidos = ['hoy', '7d', '30d', 'mes'];
+            const rangosPermitidos = ['hoy', '7d', '30d', 'mes', '3m', '6m', '1a'];
 
             const estado =
                 typeof req.query.estado === 'string'
@@ -55,7 +55,7 @@ export class PedidoController {
             if (rango && !rangosPermitidos.includes(rango)) {
                 return res.status(400).json({
                     ok: false,
-                    mensaje: 'Rango no válido. Usa hoy, 7d, 30d o mes.',
+                    mensaje: 'Rango no válido. Usa hoy, 7d, 30d, mes, 3m, 6m o 1a.',
                 });
             }
 

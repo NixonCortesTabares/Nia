@@ -3,7 +3,6 @@ import { AuthController } from '../../controllers/AuthController';
 import { UsuarioRepository } from '../../../repositories/UsuarioRepository';
 import { NegocioRepository } from '../../../repositories/NegocioRepository';
 import { authMiddleware } from '../../middlewares/auth.middleware';
-import { enviarMensaje } from '../../../../agent/whatsapp';
 
 const router = Router();
 const usuarioRepo = new UsuarioRepository();

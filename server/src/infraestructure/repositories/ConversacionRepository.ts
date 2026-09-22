@@ -180,10 +180,23 @@ export class ConversacionRepository implements IConversacionRepository {
   }
   async crear(data: CrearConversacionDTO): Promise<Conversacion> {
     const result = await pool.query<ConversacionRow>(
-      `INSERT INTO conversaciones (negocio_id, cliente_id, tipo)
-       VALUES ($1, $2, $3)
-       RETURNING id, negocio_id, cliente_id, tipo, estado, resumen, iniciada_en, cerrada_en, ultimo_mensaje_en, pedido_borrador`,
-      [data.negocioId, data.clienteId, data.tipo ?? null]
+      `INSERT INTO conversaciones (negocio_id, cliente_id, tipo, pedido_borrador)
+      VALUES (
+          $1, 
+          $2, 
+          $3, 
+          jsonb_build_object(
+              'nombre_cliente', $4::text,
+              'telefono_cliente', $5::text,
+              'tipo_entrega', 'domicilio',
+              'direccion_entrega', null,
+              'metodo_pago', null,
+              'items', '[]'::jsonb, 
+              'notas', null
+          )
+      )
+      RETURNING id, negocio_id, cliente_id, tipo, estado, resumen, iniciada_en, cerrada_en, ultimo_mensaje_en, pedido_borrador;`,
+      [data.negocioId, data.clienteId, data.tipo ?? null, data.nombreCliente ?? null, data.numeroCliente]
     );
 
     return mapConversacion(result.rows[0]);

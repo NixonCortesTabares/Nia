@@ -7,9 +7,9 @@ import { ProcesarMensajeEntranteUseCase } from '../application/conversaciones/Pr
 import { clasificarMensaje } from './MensajesPredefinidos';
 import { responderMensajePredefinido } from './MensajesPredefinidos';
 import { enviarMensaje } from '../agent/whatsapp';
-import { verificarFirmaMeta } from './verificarFirmaMeta';
+//import { verificarFirmaMeta } from './verificarFirmaMeta';
 import { clienteWhatsappRateLimiter } from '../infraestructure/security/ratelimite';
-import { GetMenuUseCase } from '../application/menu/GetMenuUseCase';
+//import { GetMenuUseCase } from '../application/menu/GetMenuUseCase';
 import { descargarMediaWhatsApp } from '../application/services/whatsappMedia.service';
 import { subirBufferACloudinary } from '../application/services/cloudinaryUpload.service';
 import { HorarioAtencionRepository } from '../infraestructure/repositories/HorarioAtencionRepository';
@@ -107,18 +107,6 @@ router.get('/', (req, res) => {
 
 router.post('/', async (req, res) => {
 
-  /*const signature = req.header('x-hub-signature-256');
-
-  const firmaValida = verificarFirmaMeta(
-    req.rawBody,
-    signature,
-    process.env.META_APP_SECRET
-  );
-
-  if (!firmaValida) {
-    console.warn('Webhook rechazado: firma inválida');
-    return res.sendStatus(403);
-  }*/
   res.sendStatus(200);
 
   try {

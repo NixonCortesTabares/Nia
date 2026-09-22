@@ -12,6 +12,8 @@ import { buildSystemPrompt } from "./prompt";
 import { ejecutarHerramienta } from "./handlers";
 import { resolverPedidoBorradorUseCase } from "../application/conversaciones/ResolverPedidoBorradorUseCase";
 import { PedidoRepository } from "../infraestructure/repositories/PedidoRepository";
+import { ActualizarNombreClienteUC } from "../application/clientes/ActualizarNombreClienteUC";
+import { ClienteRepository } from "../infraestructure/repositories/ClienteRepository";
 
 type AgentTurnParams = {
   negocio: Negocio;
@@ -209,6 +211,10 @@ export async function runAgentTurnGemini(
     // Caso 3: la tool fue exitosa.
     // Responde backend directamente. No volvemos a llamar a Gemini.
     if (resultado.ok === true) {
+      const clienteRepo = new ClienteRepository();
+      const actNomClienUC = new ActualizarNombreClienteUC(clienteRepo);
+      const nombreCliente = params.pedidoBorrador.nombre_cliente ?? "NO NOMBRE";
+      actNomClienUC.execute(params.cliente.id, nombreCliente, params.negocio.id)
       return {
         mensajeCliente: resultado.mensaje,
         pedidoBorrador: params.pedidoBorrador,

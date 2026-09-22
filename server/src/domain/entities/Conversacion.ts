@@ -36,6 +36,8 @@ export interface CrearConversacionDTO {
   negocioId: string;
   clienteId: string;
   tipo?: TipoConversacion;
+  nombreCliente?: string;
+  numeroCliente: string;
 }
 
 export interface EditarConversacionDTO {

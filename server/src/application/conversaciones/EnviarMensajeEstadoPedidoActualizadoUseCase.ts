@@ -47,10 +47,5 @@ export class EnviarMensajeEstadoPedidoActualizadoUseCase {
                 await enviarMensaje(cliente.telefono, "Tu pedido ya salió para allá!", negocio.telefonoWs);
             } 
         }
-
-        if (estado === 'entregado') {
-            await enviarMensaje(cliente.telefono, "Esperamos que disfrutes de tu comida", negocio.telefonoWs);
-            //await this.conversacionRepo.actualizar(pedido.conversacionId, { estado: 'resuelta' });
-        }
     }
 }

@@ -10,7 +10,14 @@ import {
 } from '../api/pedidosApi';
 import { getApiErrorMessage } from '../api/apiClient';
 
-type PeriodoFiltro = 'Hoy' | 'Ayer' | 'Ultimos 7 dias' | 'Ultimo mes';
+type PeriodoFiltro =
+  | 'Hoy'
+  | 'Ayer'
+  | 'Ultimos 7 dias'
+  | 'Ultimo mes'
+  | 'Ultimos 3 meses'
+  | 'Ultimos 6 meses'
+  | 'Ultimo año';
 
 type EstadoPedidoBackend =
   | 'pendiente'
@@ -33,6 +40,9 @@ const periods: PeriodoFiltro[] = [
   'Ayer',
   'Ultimos 7 dias',
   'Ultimo mes',
+  'Ultimos 3 meses',
+  'Ultimos 6 meses',
+  'Ultimo año',
 ];
 
 const states: EstadoFiltro[] = [
@@ -142,6 +152,24 @@ function obtenerFiltroPeriodo(period: PeriodoFiltro) {
   if (period === 'Ultimo mes') {
     return {
       rango: '30d' as const,
+    };
+  }
+
+  if (period === 'Ultimos 3 meses') {
+    return {
+      rango: '3m' as const,
+    };
+  }
+
+  if (period === 'Ultimos 6 meses') {
+    return {
+      rango: '6m' as const,
+    };
+  }
+
+  if (period === 'Ultimo año') {
+    return {
+      rango: '1a' as const,
     };
   }
 
@@ -384,7 +412,7 @@ export function PedidosPage() {
                   {pedido.cliente?.telefono ?? 'Sin teléfono'}
                 </p>
 
-                <div className="grid gap-2 rounded-md border border-[var(--border)] bg-[var(--surface-muted)] p-3">
+                <div className="grid gap-2 rounded-md border border-[var(--primary-border)] bg-[var(--primary-surface)] p-3">
                   {pedido.productos.length > 0 ? (
                     pedido.productos.map((producto, index) => (
                       <div

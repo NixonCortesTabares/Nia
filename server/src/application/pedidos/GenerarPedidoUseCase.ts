@@ -79,7 +79,7 @@ export class GenerarPedidoUseCase {
   ) { }
 
   async execute(input: GenerarPedidoUseCaseDTO): Promise<GenerarPedidoResumen> {
-
+    
     const pedidoPreparado = await this.prepararPedidoService.execute(input);
     const clienteTel = await this.clienteRepo.buscarPorId(pedidoPreparado.pedido.clienteId);
     if (!clienteTel) {

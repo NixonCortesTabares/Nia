@@ -131,10 +131,7 @@ export async function ejecutarHerramienta(nombre: string, input: any,
             const textoAñadido = construirTextoMetodosTransf(metodosPagos);
             const lineasMensaje: string[] = [];
 
-            lineasMensaje.push("Ya registré tu pedido.");
-            lineasMensaje.push("");
-            lineasMensaje.push(pedidoGenerado.pedido.direccionEntrega ?? "En el local");
-            lineasMensaje.push(pedidoGenerado.pedido.telefonoCliente);
+            lineasMensaje.push("Ya vamos a empezar a hacer tu pedido.");
             lineasMensaje.push("");
             lineasMensaje.push("Productos:");
             lineasMensaje.push(resumenItems);
@@ -160,8 +157,7 @@ export async function ejecutarHerramienta(nombre: string, input: any,
                 lineasMensaje.push(textoAñadido)
             }
             lineasMensaje.push("");
-            lineasMensaje.push("Nos demoramos entre 20 y 30 minutos.");
-            lineasMensaje.push(`Si tienes alguna solicitud, queja, reclamo, por favor llama: ${negocio?.numtel}`);
+            lineasMensaje.push(`Si tienes alguna solicitud, queja, reclamo, por favor llamanos.`);
             const mensaje = lineasMensaje.join("\n").trim();
 
             await controllerEventos.ConcluirResponse(pedidoGenerado.pedido.negocioId, 'nuevo_pedido');

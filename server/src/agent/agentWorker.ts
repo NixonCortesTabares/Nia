@@ -177,7 +177,7 @@ async function procesarConversacionPendiente(
     await conversacionRepo.actualizarPedidoBorrador(
       conversacion.id,
       respuesta.pedidoBorrador,
-      negocio.id
+      negocio.id  
     );
 
     if (!negocio.telefonoWs) {

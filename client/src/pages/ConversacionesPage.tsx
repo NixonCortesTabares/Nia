@@ -309,7 +309,7 @@ export function ConversacionesPage() {
             </div>
 
             <div className="conversation-actions">
-              {estadoActual === 'activa' && (
+              {!estaEscalada && (
                 <Button variant="primary" onClick={tomarControl}>
                   Tomar el control
                 </Button>

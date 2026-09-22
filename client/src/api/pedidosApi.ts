@@ -35,7 +35,7 @@ export interface Pedido {
 
 export async function obtenerPedidos(filtros?: {
   estado?: string;
-  rango?: 'hoy' | '7d' | '30d' | 'mes';
+  rango?: 'hoy' | '7d' | '30d' | 'mes' | '3m' | '6m' | '1a';
   desde?: string;
   hasta?: string;
   limit?: number;
