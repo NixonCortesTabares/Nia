@@ -115,7 +115,9 @@ const pedidoProductoExtraColumns = `id, pedido_producto_id, extra_id, negocio_id
 
 export class PedidoRepository implements IPedidoRepository {
 
-  async buscarPorNegocioConFiltros(filtros: ListarPedidosFiltros): Promise<any[]> {
+  async buscarPorNegocioConFiltros(
+    filtros: ListarPedidosFiltros
+  ): Promise<{ pedidos: any[]; total: number }> {
     try {
       const condiciones: string[] = ['p.negocio_id = $1'];
       const values: any[] = [filtros.negocioId];
@@ -192,7 +194,8 @@ export class PedidoRepository implements IPedidoRepository {
           p.creado_en,
           p.notas,
           p.nombre_cliente AS cliente_nombre,
-          p.telefono_cliente AS cliente_telefono
+          p.telefono_cliente AS cliente_telefono,
+          COUNT(*) OVER() AS total_count
         FROM pedidos p
         WHERE ${condiciones.join(' AND ')}
         ORDER BY p.creado_en DESC
@@ -255,6 +258,7 @@ export class PedidoRepository implements IPedidoRepository {
         pf.cliente_nombre,
         pf.cliente_telefono,
         pf.notas,
+        pf.total_count,
         COALESCE(
           jsonb_agg(
             jsonb_build_object(
@@ -286,14 +290,15 @@ export class PedidoRepository implements IPedidoRepository {
         pf.creado_en,
         pf.cliente_nombre,
         pf.cliente_telefono,
-        pf.notas
+        pf.notas,
+        pf.total_count
 
       ORDER BY pf.creado_en DESC
       `,
         values
       );
 
-      return result.rows.map((row) => ({
+      const pedidos = result.rows.map((row) => ({
         id: row.id,
         estado: row.estado,
         tipoEntrega: row.tipo_entrega,
@@ -323,6 +328,10 @@ export class PedidoRepository implements IPedidoRepository {
             : [],
         })),
       }));
+
+      const total = result.rows.length > 0 ? Number(result.rows[0].total_count) : 0;
+
+      return { pedidos, total };
     } catch (error) {
       console.error('Error DB buscando pedidos con filtros:', error);
       throw new Error('Error interno del servidor.');

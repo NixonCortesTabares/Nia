@@ -196,6 +196,10 @@ export function PedidosPage() {
   const [error, setError] = useState('');
   const isFetchingRef = useRef(false);
 
+  const PAGE_SIZE = 50;
+  const [page, setPage] = useState(1);
+  const [totalPedidos, setTotalPedidos] = useState(0);
+
   const cargarPedidos = useCallback(async (options?: { silent?: boolean }) => {
     if (isFetchingRef.current) {
       return;
@@ -219,11 +223,12 @@ export function PedidosPage() {
           state === 'Todos'
             ? undefined
             : estadoFrontToBackend[state],
-        limit: 100,
-        offset: 0,
+        limit: PAGE_SIZE,
+        offset: (page - 1) * PAGE_SIZE,
       });
 
       setPedidos(response.pedidos);
+      setTotalPedidos(response.total);
     } catch (error) {
       setError(getApiErrorMessage(error));
     } finally {
@@ -231,6 +236,11 @@ export function PedidosPage() {
       setRefreshing(false);
       isFetchingRef.current = false;
     }
+  }, [period, state, page]);
+
+  // Si cambia el periodo o el estado, volvemos a la primera página.
+  useEffect(() => {
+    setPage(1);
   }, [period, state]);
 
   useEffect(() => {
@@ -246,6 +256,8 @@ export function PedidosPage() {
       window.removeEventListener('nia:pedidos-poll', actualizarPedidos);
     };
   }, [cargarPedidos]);
+
+  const totalPaginas = Math.max(1, Math.ceil(totalPedidos / PAGE_SIZE));
 
   async function changeStatus(id: string, estado: EstadoPedidoBackend) {
     const pedidosAnteriores = pedidos;
@@ -325,6 +337,7 @@ export function PedidosPage() {
             <table className="orders-table">
               <thead>
                 <tr>
+                  <th>#</th>
                   <th>Pedido</th>
                   <th>Cliente</th>
                   <th>Productos</th>
@@ -336,8 +349,10 @@ export function PedidosPage() {
               </thead>
 
               <tbody>
-                {pedidos.map((pedido) => (
+                {pedidos.map((pedido, index) => (
                   <tr key={pedido.id}>
+                    <td>{totalPedidos - ((page - 1) * PAGE_SIZE + index)}</td>
+
                     <td>
                       #{pedido.id.slice(0, 8)}
                       <small>{formatDateTime(pedido.creadoEn)}</small>
@@ -392,14 +407,16 @@ export function PedidosPage() {
           </div>
 
           <div className="mobile-list">
-            {pedidos.map((pedido) => (
+            {pedidos.map((pedido, index) => (
               <Card
                 key={pedido.id}
                 className="order-card"
                 onClick={() => setSelected(pedido)}
               >
                 <div className="order-top">
-                  <strong>#{pedido.id.slice(0, 8)}</strong>
+                  <strong>
+                    #{totalPedidos - ((page - 1) * PAGE_SIZE + index)} · {pedido.id.slice(0, 8)}
+                  </strong>
                   <EstadoPedidoSelect
                     estado={pedido.estado}
                     disabled={updatingPedidoId === pedido.id}
@@ -438,6 +455,32 @@ export function PedidosPage() {
               </Card>
             ))}
           </div>
+
+          {totalPaginas > 1 && (
+            <div className="flex items-center justify-between gap-3 pt-2">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={page <= 1 || refreshing}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                Anterior
+              </button>
+
+              <span className="text-sm text-[var(--text-muted)]">
+                Página {page} de {totalPaginas} ({totalPedidos} pedidos)
+              </span>
+
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={page >= totalPaginas || refreshing}
+                onClick={() => setPage((p) => Math.min(totalPaginas, p + 1))}
+              >
+                Siguiente
+              </button>
+            </div>
+          )}
         </>
       )}
 

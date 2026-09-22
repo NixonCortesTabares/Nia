@@ -39,5 +39,7 @@ export interface IPedidoRepository {
   actualizar(id: string, negocioId: string, data: ActualizarPedidoDTO): Promise<Pedido | null>;
   cambiarEstado(id: string, negocioId: string, estado: EstadoPedido): Promise<Pedido | null>;
   cancelarYCrearCompleto(pedidoAnteriorId: string, data: CrearPedidoCompletoDTO): Promise<PedidoCompleto>;
-  buscarPorNegocioConFiltros(filtros: ListarPedidosFiltros): Promise<any[]>;
+  buscarPorNegocioConFiltros(
+    filtros: ListarPedidosFiltros
+  ): Promise<{ pedidos: any[]; total: number }>;
 }

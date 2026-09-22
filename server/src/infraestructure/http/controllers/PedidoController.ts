@@ -84,7 +84,7 @@ export class PedidoController {
                 this.pedidoRepository
             );
 
-            const pedidos = await listarPedidosUseCase.execute({
+            const { pedidos, total } = await listarPedidosUseCase.execute({
                 negocioId: req.user.negocioId,
                 estado,
                 rango,
@@ -98,6 +98,9 @@ export class PedidoController {
                 ok: true,
                 mensaje: 'Pedidos obtenidos exitosamente.',
                 pedidos,
+                total,
+                limit,
+                offset,
             });
         } catch (error) {
             console.error('Error obteniendo pedidos:', error);

@@ -45,6 +45,9 @@ export async function obtenerPedidos(filtros?: {
     ok: boolean;
     mensaje: string;
     pedidos: Pedido[];
+    total: number;
+    limit: number;
+    offset: number;
   }>('/pedidos', {
     params: filtros,
   });
