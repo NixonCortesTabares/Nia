@@ -92,15 +92,26 @@ function getBogotaDateParts(date: Date) {
 }
 
 function getFiltroDiaBogota(date = new Date()) {
-  const { year, month, day } = getBogotaDateParts(date);
-  const inicioDiaUtc = new Date(Date.UTC(year, month - 1, day, BOGOTA_UTC_OFFSET_HOURS, 0, 0));
-  const finDiaUtc = new Date(Date.UTC(year, month - 1, day + 1, BOGOTA_UTC_OFFSET_HOURS, 0, 0) - 1000);
+  const HORA_CORTE_DASHBOARD = 6; // el "día" del dashboard va de 6 AM a 6 AM (hora Bogotá)
+
+  // Si son, por ejemplo, las 3 AM, todavía pertenece a la ventana que empezó
+  // ayer a las 6 AM: restamos la hora de corte antes de sacar la fecha calendario.
+  const fechaAjustada = new Date(date.getTime() - HORA_CORTE_DASHBOARD * 60 * 60 * 1000);
+  const { year, month, day } = getBogotaDateParts(fechaAjustada);
+
+  const inicioDiaUtc = new Date(
+    Date.UTC(year, month - 1, day, BOGOTA_UTC_OFFSET_HOURS + HORA_CORTE_DASHBOARD, 0, 0)
+  );
+  const finDiaUtc = new Date(
+    Date.UTC(year, month - 1, day + 1, BOGOTA_UTC_OFFSET_HOURS + HORA_CORTE_DASHBOARD, 0, 0) - 1000
+  );
 
   return {
     desde: formatDateTimeFilter(inicioDiaUtc),
     hasta: formatDateTimeFilter(finDiaUtc),
   };
 }
+
 export function DashboardPage() {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(true);
