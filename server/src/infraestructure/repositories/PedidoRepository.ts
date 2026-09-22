@@ -138,7 +138,7 @@ export class PedidoRepository implements IPedidoRepository {
         }
 
         if (filtros.rango === '30d') {
-          condiciones.push(`p.creado_en >= NOW() - INTERVAL '30 days'`);
+          condiciones.push(`p.creado_en >= NOW() - INTERVAL '1 month'`);
         }
 
         if (filtros.rango === 'mes') {
